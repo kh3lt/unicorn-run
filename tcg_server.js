@@ -8,7 +8,7 @@
 //                      sans elle, la boutique payante reste fermée
 //   PUBLIC_URL         adresse publique du serveur (ex. https://mon-jeu.onrender.com), si les
 //                      pages de retour après paiement ne trouvent pas la bonne adresse toutes seules
-// Si le fichier platformer.html est posé à côté de ce fichier, le jeu est aussi
+// Si le jeu (platformer.html, game.html ou index.html) est posé à côté de ce fichier, il est aussi
 // servi à l'adresse du serveur : il s'y connecte alors tout seul, rien à régler.
 // -----------------------------------------------------------------------------
 // Duels : le serveur met deux joueurs en relation (salon à code ou partie rapide)
@@ -25,7 +25,9 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = parseInt(process.env.PORT, 10) || 8787;
-const GAME_FILE = path.join(__dirname, 'platformer.html');
+// le jeu posé à côté de ce fichier, quel que soit son nom parmi ceux-ci (garde un seul fichier de jeu dans le dossier)
+const GAME_NAMES = ['game.html', 'platformer.html', 'index.html', 'jeu.html', 'unicorn_run.html'];
+function gameFile() { for (const n of GAME_NAMES) { const f = path.join(__dirname, n); if (fs.existsSync(f)) return f; } return ''; }
 const MAX_MSG = 512 * 1024;            // taille maximale d'un message (octets)
 const MAX_RATE = 400;                  // messages maximum par joueur toutes les 10 s
 const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
@@ -59,12 +61,13 @@ const SELLER_FILE = path.join(__dirname, 'infos_vendeur.json');
 function seller() {
   let j = {}; try { j = JSON.parse(fs.readFileSync(SELLER_FILE, 'utf8')); } catch (e) {}
   const d = (v) => (typeof v === 'string' ? v.trim() : '');
-  const o = {nom: d(j.nom), statut: d(j.statut), siret: d(j.siret), immatriculation: d(j.immatriculation), adresse: d(j.adresse), email: d(j.email), telephone: d(j.telephone),
+  const o = {nom: d(j.nom), commercial: d(j.nom_commercial), statut: d(j.statut), siret: d(j.siret), immatriculation: d(j.immatriculation), adresse: d(j.adresse), email: d(j.email), telephone: d(j.telephone),
     directeur: d(j.directeur_publication), tva: d(j.tva) || 'TVA non applicable, art. 293 B du CGI', jeu: d(j.nom_du_jeu) || 'Unicorn Run', maj: d(j.date_mise_a_jour) || '',
     med: {nom: d((j.mediateur || {}).nom), adresse: d((j.mediateur || {}).adresse), site: d((j.mediateur || {}).site)},
     heb: {nom: d((j.hebergeur || {}).nom), adresse: d((j.hebergeur || {}).adresse), contact: d((j.hebergeur || {}).contact)}};
   const req = [o.nom, o.statut, o.siret, o.adresse, o.email, o.telephone, o.directeur, o.med.nom, o.med.adresse, o.med.site, o.heb.nom, o.heb.adresse, o.heb.contact];
   o.complete = req.every((v) => v && !/À COMPLÉTER/i.test(v));
+  o.affiche = o.commercial && !/À COMPLÉTER/i.test(o.commercial) ? o.commercial + ' (' + o.nom + ')' : o.nom;   // « Neko (Prénom Nom) »
   return o;
 }
 const LIVE = /^sk_live_/.test(STRIPE_KEY);
@@ -109,9 +112,10 @@ const baseUrl = (req) => PUBLIC_URL || ((String(req.headers['x-forwarded-proto']
 const clientIp = (req) => String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket.remoteAddress || '?';
 function readBody(req, max) {
   return new Promise((resolve) => {
-    let d = '', n = 0;
-    req.on('data', (c) => { n += c.length; if (n > max) { req.destroy(); resolve(null); return; } d += c; });
-    req.on('end', () => { let j = null; try { j = JSON.parse(d || '{}'); } catch (e) {} resolve(j); });
+    let d = '', n = 0, big = false;
+    // trop gros : on lit jusqu'au bout sans garder (pour pouvoir répondre proprement), et on coupe si ça devient absurde
+    req.on('data', (c) => { n += c.length; if (n > max) { big = true; d = ''; if (n > max + 2 * 1024 * 1024) { req.destroy(); resolve(null); } return; } d += c; });
+    req.on('end', () => { if (big) { resolve({_big: true}); return; } let j = null; try { j = JSON.parse(d || '{}'); } catch (e) {} resolve(j); });
     req.on('error', () => resolve(null));
   });
 }
@@ -120,7 +124,7 @@ function sendJson(res, code, obj) {
   res.end(JSON.stringify(obj));
 }
 function page(res, title, text, emoji) {
-  const back = fs.existsSync(GAME_FILE) ? '<a href="/">Retour au jeu</a>' : '<p class="s">Tu peux fermer cette page et revenir dans Unicorn Run.</p>';
+  const back = gameFile() ? '<a href="/">Retour au jeu</a>' : '<p class="s">Tu peux fermer cette page et revenir dans Unicorn Run.</p>';
   res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store'});
   res.end('<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + title + '</title><style>' +
     'body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:linear-gradient(180deg,#3b1f80,#1d1050);color:#fff;text-align:center}' +
@@ -141,12 +145,12 @@ function legalPage(res, title, body) {
     'mark{background:#ffe08a;padding:0 3px;border-radius:3px}.box{background:#fff;border:1px solid #e0d2f7;border-radius:12px;padding:12px 14px;margin:10px 0}' +
     '.kid{background:#fff6d6;border-color:#f0d78a}</style></head><body><main><nav>' +
     [['mentions', 'Mentions légales'], ['cgv', 'Conditions de vente'], ['confidentialite', 'Confidentialité']].map(([k, n]) => '<a href="/legal/' + k + '"' + (title === n ? ' class="on"' : '') + '>' + n + '</a>').join('') +
-    (fs.existsSync(GAME_FILE) ? '<a href="/">Retour au jeu</a>' : '') + '</nav><h1>' + escH(title) + '</h1>' + (v.maj ? '<small>Mise à jour : ' + escH(v.maj) + '</small>' : '') + body +
+    (gameFile() ? '<a href="/">Retour au jeu</a>' : '') + '</nav><h1>' + escH(title) + '</h1>' + (v.maj ? '<small>Mise à jour : ' + escH(v.maj) + '</small>' : '') + body +
     (v.complete ? '' : '<p class="box kid"><b>Informations à compléter</b> : les passages surlignés doivent être remplis dans le fichier infos_vendeur.json du serveur.</p>') +
     '</main></body></html>');
 }
 function identite(v) {
-  return '<p><b>' + fill(v.nom) + '</b><br>' + fill(v.statut) + '<br>SIRET : ' + fill(v.siret) + (v.immatriculation ? '<br>' + escH(v.immatriculation) : '') +
+  return '<p>' + (v.commercial ? '<b>' + escH(v.commercial) + '</b><br>' + fill(v.nom) : '<b>' + fill(v.nom) + '</b>') + '<br>' + fill(v.statut) + '<br>SIRET : ' + fill(v.siret) + (v.immatriculation ? '<br>' + escH(v.immatriculation) : '') +
     '<br>Adresse : ' + fill(v.adresse) + '<br>E-mail : ' + fill(v.email) + '<br>Téléphone : ' + fill(v.telephone) + '<br>' + escH(v.tva) + '</p>';
 }
 function mediateur(v) {
@@ -201,15 +205,17 @@ function pageCgv(res) {
 function pageConfidentialite(res) {
   const v = seller();
   legalPage(res, 'Confidentialité',
-    '<div class="box kid"><b>En clair</b> : ta partie, ton pseudo et tes arcs-en-ciel restent sur ton appareil. Pendant un duel en ligne, ton pseudo et tes coups passent par notre serveur, sans être gardés. Pour un achat, c\'est Stripe qui s\'occupe du paiement et de ton e-mail. Pas de publicité, pas de pistage.</div>' +
+    '<div class="box kid"><b>En clair</b> : sans compte, ta partie reste sur ton appareil. Avec un compte (à partir de 15 ans), on garde ton pseudo, ta date de naissance, ton mot de passe chiffré et ta progression pour que tu la retrouves sur tous tes appareils. Pendant une partie en ligne, ton pseudo et tes coups passent par notre serveur, sans être gardés. Pour un achat, c\'est Stripe qui s\'occupe du paiement et de ton e-mail. Pas de publicité, pas de pistage.</div>' +
     '<h2>Responsable du traitement</h2>' + identite(v) +
     '<h2>Données sur ton appareil</h2><p>Ta progression, ton pseudo, tes arcs-en-ciel, ta collection et tes réglages sont enregistrés uniquement dans le stockage local du navigateur de ton appareil. Ils ne nous sont pas envoyés. Ce stockage est strictement nécessaire au fonctionnement du jeu ; il ne demande donc pas de consentement. Le jeu n\'utilise ni cookie publicitaire, ni outil de mesure d\'audience, ni pistage.</p>' +
+    '<h2>Compte joueur</h2><p>Le compte est facultatif et réservé aux personnes de 15 ans et plus. Il contient ton pseudo (unique), ta date de naissance, ton mot de passe (enregistré sous une forme chiffrée qu\'on ne peut pas relire) et une copie de ta progression. La date de naissance sert uniquement à vérifier l\'âge minimum de 15 ans et à réserver le casino aux 18 ans et plus. Base légale : l\'exécution du service que tu demandes en créant le compte. Ces données sont conservées jusqu\'à ce que tu supprimes ton compte (Paramètres → Compte → Supprimer mon compte), et effacées automatiquement après 3 ans sans connexion. Elles sont stockées chez notre hébergeur et chez Upstash, Inc. (base de données).</p>' +
+    '<h2>Joueurs en ligne</h2><p>Pour afficher le nombre de joueurs connectés, chaque page du jeu ouverte envoie un identifiant tiré au hasard, sans lien avec toi. Il est oublié au bout d\'une minute.</p>' +
     '<h2>Duel en ligne</h2><p>Quand tu joues un duel, ton pseudo, ton niveau, ton deck et tes actions de jeu sont transmis à ton adversaire par notre serveur. Ils ne sont pas conservés après la partie. Ton adresse IP est utilisée le temps de la connexion pour faire marcher le service et limiter les abus. L\'hébergeur peut garder des journaux techniques pendant une durée limitée. Base légale : l\'exécution du service que tu demandes.</p>' +
     '<h2>Achats</h2><p>Le paiement est géré par Stripe Payments Europe, Ltd. Stripe recueille ton adresse e-mail et tes données de paiement, et les traite selon sa propre politique de confidentialité (stripe.com/fr/privacy). Nous recevons l\'identifiant du paiement, la date, le montant, l\'offre achetée et l\'adresse e-mail indiquée.</p>' +
     '<p>Bases légales : l\'exécution du contrat, puis nos obligations comptables. Les pièces comptables sont conservées 10 ans, comme la loi l\'exige.</p>' +
-    '<h2>Destinataires et transferts</h2><p>Seuls l\'éditeur et ses prestataires techniques ont accès à ces données : l\'hébergeur (' + fill(v.heb.nom) + ') et Stripe. Si un prestataire traite des données hors de l\'Union européenne, ce transfert est encadré par les garanties prévues par le RGPD, par exemple des clauses contractuelles types ou une décision d\'adéquation.</p>' +
+    '<h2>Destinataires et transferts</h2><p>Seuls l\'éditeur et ses prestataires techniques ont accès à ces données : l\'hébergeur (' + fill(v.heb.nom) + '), Upstash (comptes joueurs) et Stripe. Si un prestataire traite des données hors de l\'Union européenne, ce transfert est encadré par les garanties prévues par le RGPD, par exemple des clauses contractuelles types ou une décision d\'adéquation.</p>' +
     '<h2>Tes droits</h2><p>Tu peux demander l\'accès à tes données, leur rectification ou leur effacement, ou t\'opposer à leur traitement. Tu peux aussi demander la limitation du traitement ou la portabilité de tes données. Écris à ' + fill(v.email) + '. Si tu n\'es pas satisfait de la réponse, tu peux saisir la CNIL (cnil.fr).</p>' +
-    '<h2>Enfants</h2><p>Le jeu peut être utilisé par des enfants. Il ne leur demande aucune donnée personnelle, en dehors d\'un pseudo qui reste sur l\'appareil. Les achats nécessitent un adulte.</p>');
+    '<h2>Enfants</h2><p>Le jeu peut être utilisé par des enfants sans compte : rien n\'est alors envoyé, la partie reste sur l\'appareil. Le compte n\'est pas ouvert aux moins de 15 ans. Le casino est réservé aux 18 ans et plus. Les achats nécessitent un adulte.</p>');
 }
 async function shopRoute(req, res, url) {
   if (req.method === 'OPTIONS') {
@@ -219,7 +225,7 @@ async function shopRoute(req, res, url) {
   if (url === '/shop/packs') {
     const v = seller(), open = !!STRIPE_KEY && (!LIVE || v.complete);
     sendJson(res, 200, {enabled: open, test: /^sk_test_/.test(STRIPE_KEY), reason: STRIPE_KEY && !open ? 'legal' : '', currency: 'eur', packs: PACKS,
-      legal: {complete: v.complete, seller: v.complete ? v.nom : '', vat: v.tva, email: v.complete ? v.email : '', cgv: '/legal/cgv', mentions: '/legal/mentions', privacy: '/legal/confidentialite', version: v.maj}});
+      legal: {complete: v.complete, seller: v.complete ? v.affiche : '', vat: v.tva, email: v.complete ? v.email : '', cgv: '/legal/cgv', mentions: '/legal/mentions', privacy: '/legal/confidentialite', version: v.maj}});
     return;
   }
   if (url === '/shop/merci') { page(res, 'Merci !', 'Ton paiement est bien reçu. Retourne dans le jeu : tes arcs-en-ciel arrivent tout seuls dans quelques secondes. La confirmation de ta commande t\'est envoyée par e-mail.', '🌈'); return; }
@@ -236,7 +242,7 @@ async function shopRoute(req, res, url) {
     const base = baseUrl(req), en = b.lang === 'en', at = new Date().toISOString();
     const confirm = nfr(pk.rainbows) + ' arcs-en-ciel (monnaie virtuelle du jeu ' + v.jeu + ') – ' + euros(pk.cents) + ' TTC (' + v.tva + '). ' +
       'Le client a accepté les conditions générales de vente (version du ' + (v.maj || at.slice(0, 10)) + ') et a demandé expressément la livraison immédiate des arcs-en-ciel, en reconnaissant perdre son droit de rétractation (art. L.221-28 13° du Code de la consommation). ' +
-      'Vendeur : ' + (v.complete ? v.nom + ', ' + v.adresse + ', ' + v.email : 'informations vendeur à compléter') + '. CGV : ' + base + '/legal/cgv';
+      'Vendeur : ' + (v.complete ? v.affiche + ', ' + v.adresse + ', ' + v.email : 'informations vendeur à compléter') + '. CGV : ' + base + '/legal/cgv';
     try {
       const s = await stripe('POST', '/v1/checkout/sessions', {
         mode: 'payment', submit_type: 'pay', locale: en ? 'en' : 'fr',
@@ -288,11 +294,11 @@ async function shopRoute(req, res, url) {
 let clipCache = {mtime: -1, map: new Map()};
 function clips() {
   try {
-    const st = fs.statSync(GAME_FILE);
-    if (st.mtimeMs !== clipCache.mtime) {
-      const txt = fs.readFileSync(GAME_FILE, 'utf8'), map = new Map(), re = /<script type="text\/plain" id="(mvm-[a-z]+-[LP])">([\s\S]*?)<\/script>/g;
+    const gf = gameFile(), st = fs.statSync(gf);
+    if (st.mtimeMs + gf !== clipCache.mtime) {
+      const txt = fs.readFileSync(gf, 'utf8'), map = new Map(), re = /<script type="text\/plain" id="(mvm-[a-z]+-[LP])">([\s\S]*?)<\/script>/g;
       let m; while ((m = re.exec(txt))) map.set(m[1], Buffer.from(m[2].trim(), 'base64'));
-      clipCache = {mtime: st.mtimeMs, map: map};
+      clipCache = {mtime: st.mtimeMs + gf, map: map};
     }
   } catch (e) {}
   return clipCache.map;
@@ -313,19 +319,204 @@ function sendClip(req, res, name) {
   res.end(req.method === 'HEAD' ? undefined : buf);
 }
 
+// ---------------------------------------------------------------- comptes joueurs
+// Un pseudo = un seul compte (pseudo unique) ; la progression du compte suit le joueur sur tous ses appareils.
+// Compte réservé aux 15 ans et plus (majorité numérique en France) ; la date de naissance sert aussi à réserver le casino aux 18 ans et plus.
+// Stockage : base Upstash Redis (gratuite, en HTTPS) si UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN sont réglés.
+// Sinon : fichier data/comptes.json, pratique à la maison mais EFFACÉ à chaque redémarrage sur Render gratuit.
+const KV_URL = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, ''), KV_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
+const KV_ON = !!(KV_URL && KV_TOKEN), DATA_FILE = path.join(__dirname, 'data', 'comptes.json');
+const MIN_AGE = 15, ADULT_AGE = 18, SAVE_MAX = 450 * 1024, TOKEN_TTL = 365 * 86400, KEEP_TTL = 3 * 365 * 86400;   // compte sans connexion pendant 3 ans : effacé
+async function upstash(args) {
+  const r = await fetch(KV_URL, {method: 'POST', headers: {Authorization: 'Bearer ' + KV_TOKEN, 'Content-Type': 'application/json'}, body: JSON.stringify(args), signal: AbortSignal.timeout(8000)});
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || j.error) throw new Error('base de comptes : ' + (j.error || r.status));
+  return j.result;
+}
+const fileKv = {map: null, t: 0};
+function fileLoad() { if (fileKv.map) return; try { fileKv.map = new Map(Object.entries(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')))); } catch (e) { fileKv.map = new Map(); } }
+function fileFlush() {
+  try { fs.mkdirSync(path.dirname(DATA_FILE), {recursive: true}); fs.writeFileSync(DATA_FILE + '.tmp', JSON.stringify(Object.fromEntries(fileKv.map))); fs.renameSync(DATA_FILE + '.tmp', DATA_FILE); }
+  catch (e) { log('⚠ comptes : écriture impossible :', e.message); }
+}
+const fileSave = () => { clearTimeout(fileKv.t); fileKv.t = setTimeout(fileFlush, 400); };
+['SIGTERM', 'SIGINT'].forEach((sig) => process.on(sig, () => { if (fileKv.t) { clearTimeout(fileKv.t); fileFlush(); } process.exit(0); }));
+const kv = {
+  async get(k) {
+    if (KV_ON) return upstash(['GET', k]);
+    fileLoad(); const e = fileKv.map.get(k); if (!e) return null;
+    if (e.x && e.x < Date.now()) { fileKv.map.delete(k); return null; }
+    return e.v;
+  },
+  async set(k, v, o) {   // o : {nx: ne pas écraser, ex: durée de vie en secondes}
+    if (KV_ON) { const a = ['SET', k, v]; if (o && o.nx) a.push('NX'); if (o && o.ex) a.push('EX', String(o.ex)); return (await upstash(a)) === 'OK'; }
+    if (o && o.nx && (await kv.get(k)) !== null) return false;
+    fileKv.map.set(k, {v: v, x: o && o.ex ? Date.now() + o.ex * 1000 : 0}); fileSave(); return true;
+  },
+  async del(k) { if (KV_ON) { await upstash(['DEL', k]); return; } fileLoad(); fileKv.map.delete(k); fileSave(); },
+  async expire(k, sec) { if (KV_ON) { await upstash(['EXPIRE', k, String(sec)]); return; } fileLoad(); const e = fileKv.map.get(k); if (e) { e.x = Date.now() + sec * 1000; fileSave(); } },
+};
+const pkeyOf = (p) => String(p || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const RESERVED = new Set(['admin', 'administrateur', 'moderateur', 'modo', 'neko', 'nekostudio', 'invite', 'guest', 'joueur', 'licorne', 'unicorn', 'unicornrun', 'support', 'staff', 'systeme', 'system', 'serveur']);
+function pseudoCheck(raw) {
+  const p = String(raw || '').replace(/\s+/g, ' ').trim();
+  if (p.length < 3 || p.length > 14) return {e: 'len'};
+  if (!/^[\p{L}\p{N} _.'-]+$/u.test(p)) return {e: 'chars'};
+  const k = pkeyOf(p);
+  if (k.length < 3) return {e: 'len'};
+  if (RESERVED.has(k) || /^(invite|guest)\d*$/.test(k)) return {e: 'reserved'};
+  return {p: p, k: k};
+}
+function ageOf(birth) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(birth || '')); if (!m) return -1;
+  const y = +m[1], mo = +m[2], d = +m[3], dt = new Date(Date.UTC(y, mo - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== mo - 1 || dt.getUTCDate() !== d) return -1;
+  const now = new Date(Date.now() + 3600e3);   // heure de Paris, à peu près
+  let a = now.getUTCFullYear() - y;
+  if (now.getUTCMonth() + 1 < mo || (now.getUTCMonth() + 1 === mo && now.getUTCDate() < d)) a--;
+  return a > 120 ? -1 : a;
+}
+const scryptP = (pass, salt) => new Promise((ok, ko) => crypto.scrypt(String(pass), salt, 32, {N: 16384, r: 8, p: 1}, (e, k) => (e ? ko(e) : ok(k))));
+const accCache = new Map(), metaCache = new Map(), tokCache = new Map();
+const capMap = (m, n) => { if (m.size > n) m.delete(m.keys().next().value); };
+async function accGet(k) {
+  if (accCache.has(k)) return accCache.get(k);
+  const raw = await kv.get('acc:' + k); let a = null; try { a = raw ? JSON.parse(raw) : null; } catch (e) {}
+  if (a) { accCache.set(k, a); capMap(accCache, 2000); }
+  return a;
+}
+async function metaGet(k) {   // révision et date de la dernière sauvegarde (sans relire toute la sauvegarde)
+  if (metaCache.has(k)) return metaCache.get(k);
+  const raw = await kv.get('save:' + k); let m = {rev: 0, at: 0};
+  try { if (raw) { const j = JSON.parse(raw); m = {rev: j.rev | 0, at: +j.at || 0}; } } catch (e) {}
+  metaCache.set(k, m); capMap(metaCache, 2000);
+  return m;
+}
+async function tokAcc(t) {
+  if (typeof t !== 'string' || !/^[a-f0-9]{48}$/.test(t)) return null;
+  let k = tokCache.get(t);
+  if (k === undefined) { k = await kv.get('tok:' + t); tokCache.set(t, k || null); capMap(tokCache, 4000); }
+  if (!k) return null;
+  const a = await accGet(k);
+  if (!a) { tokCache.set(t, null); return null; }
+  return a;
+}
+async function tokNew(k) { const t = crypto.randomBytes(24).toString('hex'); await kv.set('tok:' + t, k, {ex: TOKEN_TTL}); tokCache.set(t, k); return t; }
+const accOut = (a, m) => ({pseudo: a.p, birth: a.b, adult: ageOf(a.b) >= ADULT_AGE, rev: m.rev, at: m.at});
+// trop d'essais de mot de passe ratés : pause de 15 minutes
+const accFails = new Map();
+const accFailKey = (req, k) => clientIp(req) + '|' + k;
+const accTooMany = (req, k) => { const f = accFails.get(accFailKey(req, k)); return !!(f && f.n >= 8 && Date.now() - f.t < 15 * 60e3); };
+const accFailed = (req, k) => { const key = accFailKey(req, k), f = accFails.get(key); accFails.set(key, f && Date.now() - f.t < 15 * 60e3 ? {n: f.n + 1, t: f.t} : {n: 1, t: Date.now()}); capMap(accFails, 5000); };
+function saveSize(save) { try { return JSON.stringify(save || {}).length; } catch (e) { return Infinity; } }
+async function accountRoute(req, res, url) {
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204, {'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Methods': 'POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type', 'Access-Control-Max-Age': '86400'});
+    res.end(); return;
+  }
+  if (req.method !== 'POST') { sendJson(res, 405, {e: 'method'}); return; }
+  const b = await readBody(req, url === '/account/save' || url === '/account/register' ? SAVE_MAX + 4096 : 4096);
+  if (!b) { sendJson(res, 400, {e: 'body'}); return; }
+  if (b._big) { sendJson(res, 413, {e: 'big'}); return; }
+  switch (url) {
+    case '/account/check': {
+      const c = pseudoCheck(b.pseudo); if (c.e) { sendJson(res, 200, {ok: true, free: false, e: c.e}); return; }
+      sendJson(res, 200, {ok: true, free: !(await accGet(c.k))}); return;
+    }
+    case '/account/register': {
+      const c = pseudoCheck(b.pseudo); if (c.e) { sendJson(res, 200, {e: c.e}); return; }
+      const age = ageOf(b.birth);
+      if (age < 0) { sendJson(res, 200, {e: 'birth'}); return; }
+      if (age < MIN_AGE) { sendJson(res, 200, {e: 'age'}); return; }
+      const pass = String(b.pass || '');
+      if (pass.length < 6 || pass.length > 72) { sendJson(res, 200, {e: 'pass'}); return; }
+      if (saveSize(b.save) > SAVE_MAX) { sendJson(res, 200, {e: 'big'}); return; }
+      const salt = crypto.randomBytes(16), h = await scryptP(pass, salt);
+      const a = {p: c.p, k: c.k, h: h.toString('hex'), s: salt.toString('hex'), b: b.birth, c: Date.now()};
+      if (!(await kv.set('acc:' + c.k, JSON.stringify(a), {nx: true, ex: KEEP_TTL}))) { sendJson(res, 200, {e: 'taken'}); return; }
+      accCache.set(c.k, a);
+      const m = {rev: 1, at: Date.now()};
+      await kv.set('save:' + c.k, JSON.stringify({rev: m.rev, at: m.at, data: b.save && typeof b.save === 'object' ? b.save : {}}), {ex: KEEP_TTL});
+      metaCache.set(c.k, m);
+      log('compte créé :', c.p);
+      sendJson(res, 200, Object.assign({ok: true, token: await tokNew(c.k)}, accOut(a, m))); return;
+    }
+    case '/account/login': {
+      const k = pkeyOf(b.pseudo);
+      if (accTooMany(req, k)) { sendJson(res, 200, {e: 'wait'}); return; }
+      const a = k && (await accGet(k));
+      const ok = a && crypto.timingSafeEqual(await scryptP(String(b.pass || ''), Buffer.from(a.s, 'hex')), Buffer.from(a.h, 'hex'));
+      if (!ok) { accFailed(req, k); sendJson(res, 200, {e: 'login'}); return; }
+      const raw = await kv.get('save:' + k); let sv = {rev: 0, at: 0, data: {}}; try { if (raw) sv = JSON.parse(raw); } catch (e) {}
+      metaCache.set(k, {rev: sv.rev | 0, at: +sv.at || 0});
+      await kv.expire('acc:' + k, KEEP_TTL); await kv.expire('save:' + k, KEEP_TTL);   // on repart pour 3 ans
+      sendJson(res, 200, Object.assign({ok: true, token: await tokNew(k), save: sv.data || {}}, accOut(a, metaCache.get(k)))); return;
+    }
+  }
+  const a = await tokAcc(b.token);
+  if (!a) { sendJson(res, 200, {e: 'auth'}); return; }
+  switch (url) {
+    case '/account/me': sendJson(res, 200, Object.assign({ok: true}, accOut(a, await metaGet(a.k)))); return;
+    case '/account/load': {
+      const raw = await kv.get('save:' + a.k); let sv = {rev: 0, at: 0, data: {}}; try { if (raw) sv = JSON.parse(raw); } catch (e) {}
+      metaCache.set(a.k, {rev: sv.rev | 0, at: +sv.at || 0});
+      sendJson(res, 200, {ok: true, rev: sv.rev | 0, at: +sv.at || 0, save: sv.data || {}}); return;
+    }
+    case '/account/save': {
+      if (!b.save || typeof b.save !== 'object') { sendJson(res, 400, {e: 'body'}); return; }
+      if (saveSize(b.save) > SAVE_MAX) { sendJson(res, 200, {e: 'big'}); return; }
+      const m = await metaGet(a.k);
+      // un autre appareil a sauvegardé entre-temps : le jeu choisit (la partie la plus récente gagne)
+      if (!b.force && (b.base | 0) !== m.rev) { sendJson(res, 200, {e: 'conflict', rev: m.rev, at: m.at}); return; }
+      const n = {rev: m.rev + 1, at: Math.min(Date.now(), +b.at || Date.now())};
+      await kv.set('save:' + a.k, JSON.stringify({rev: n.rev, at: n.at, data: b.save}), {ex: KEEP_TTL});
+      if (n.rev % 50 === 2) kv.expire('acc:' + a.k, KEEP_TTL).catch(() => {});
+      metaCache.set(a.k, n);
+      sendJson(res, 200, {ok: true, rev: n.rev, at: n.at}); return;
+    }
+    case '/account/logout': await kv.del('tok:' + b.token); tokCache.delete(b.token); sendJson(res, 200, {ok: true}); return;
+    case '/account/delete': {
+      if (accTooMany(req, a.k)) { sendJson(res, 200, {e: 'wait'}); return; }
+      const ok = crypto.timingSafeEqual(await scryptP(String(b.pass || ''), Buffer.from(a.s, 'hex')), Buffer.from(a.h, 'hex'));
+      if (!ok) { accFailed(req, a.k); sendJson(res, 200, {e: 'login'}); return; }
+      await kv.del('acc:' + a.k); await kv.del('save:' + a.k); await kv.del('tok:' + b.token);
+      accCache.delete(a.k); metaCache.delete(a.k); tokCache.delete(b.token);
+      log('compte supprimé :', a.p);
+      sendJson(res, 200, {ok: true}); return;
+    }
+  }
+  sendJson(res, 404, {e: 'route'});
+}
+
+// ---------------------------------------------------------------- joueurs en ligne (compteur affiché dans le jeu)
+// Chaque page du jeu ouverte signale sa présence toutes les ~25 s ; on compte celles vues dans la dernière minute.
+const presence = new Map();
+function presenceCount() { const lim = Date.now() - 60e3; for (const [id, t] of presence) if (t < lim) presence.delete(id); return presence.size; }
+function presenceRoute(req, res, url) {
+  const q = new URL(req.url, 'http://x').searchParams, id = String(q.get('id') || '').slice(0, 40);
+  if (/^[A-Za-z0-9_-]{8,40}$/.test(id)) { if (q.get('bye') === '1') presence.delete(id); else if (presence.has(id) || presence.size < 100000) presence.set(id, Date.now()); }
+  sendJson(res, 200, {online: Math.max(1, presenceCount())});
+}
+
 // ---------------------------------------------------------------- HTTP
 const server = http.createServer((req, res) => {
   const url = (req.url || '/').split('?')[0];
   const clip = /^\/clips\/(mvm-[a-z]+-[LP])\.mp4$/.exec(url);
   if (clip) { sendClip(req, res, clip[1]); return; }
   if (url.startsWith('/shop/')) { shopRoute(req, res, url).catch(() => { try { sendJson(res, 500, {e: 'server'}); } catch (e) {} }); return; }
+  if (url.startsWith('/account/')) { accountRoute(req, res, url).catch((e) => { log('⚠ comptes :', e.message); try { sendJson(res, 503, {e: 'store'}); } catch (x) {} }); return; }
+  if (url === '/presence') { presenceRoute(req, res, url); return; }
   if (url === '/legal/mentions') { pageMentions(res); return; }
   if (url === '/legal/cgv') { pageCgv(res); return; }
   if (url === '/legal/confidentialite') { pageConfidentialite(res); return; }
   if (url === '/health') { res.writeHead(200, {'Content-Type': 'text/plain; charset=utf-8'}); res.end('ok'); return; }
-  if ((url === '/' || url === '/index.html' || url === '/platformer.html') && fs.existsSync(GAME_FILE)) {
-    res.writeHead(200, {'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'});
-    fs.createReadStream(GAME_FILE).pipe(res); return;
+  const gf = (url === '/' || GAME_NAMES.indexOf(url.slice(1)) >= 0) ? gameFile() : '';
+  if (gf) {
+    let st = null; try { st = fs.statSync(gf); } catch (e) {}
+    const tag = st ? '"' + st.size.toString(36) + '-' + Math.round(st.mtimeMs).toString(36) + '"' : '';
+    if (tag && req.headers['if-none-match'] === tag) { res.writeHead(304, {ETag: tag, 'Cache-Control': 'no-cache'}); res.end(); return; }
+    res.writeHead(200, Object.assign({'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-cache'}, tag ? {ETag: tag} : {}));
+    fs.createReadStream(gf).pipe(res); return;
   }
   res.writeHead(200, {'Content-Type': 'text/plain; charset=utf-8'});
   res.end('Serveur Unicorn Run en ligne. Joueurs connectés : ' + clients.size + '\n');
@@ -436,10 +627,14 @@ function leaveRoom(c) {
 }
 function handle(c, m) {
   switch (m.t) {
-    case 'hello':
-      c.name = cleanName(m.name);
-      c.send({t: 'welcome', v: 1, online: clients.size});
+    case 'hello': {
+      const guest = 'Invité ' + String(1000 + (c.id * 7919) % 9000);
+      const done = () => c.send({t: 'welcome', v: 1, online: clients.size, name: c.name});
+      c.name = guest;
+      if (typeof m.token === 'string' && m.token) tokAcc(m.token).then((a) => { if (a) { c.name = a.p; c.acct = a.k; } }, () => {}).then(done);
+      else done();
       break;
+    }
     case 'create': {
       leaveRoom(c);
       const r = {code: genCode(), host: c, guest: null};
@@ -635,7 +830,8 @@ setInterval(() => {
 }, 10000);
 
 server.listen(PORT, () => {
-  log('Serveur Unicorn Run prêt sur le port ' + PORT + (fs.existsSync(GAME_FILE) ? ' (le jeu est servi sur /)' : ''));
+  log('Serveur Unicorn Run prêt sur le port ' + PORT + (gameFile() ? ' (le jeu ' + path.basename(gameFile()) + ' est servi sur /)' : ' (aucun fichier de jeu trouvé à côté du serveur)'));
+  log(KV_ON ? 'Comptes joueurs : base Upstash (permanente)' : '⚠ Comptes joueurs : fichier local data/comptes.json. Sur Render gratuit il est EFFACÉ à chaque redémarrage : règle UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN.');
   const v = seller();
   log(!STRIPE_KEY ? 'Boutique payante : fermée (pas de STRIPE_SECRET_KEY)'
     : LIVE && !v.complete ? 'Boutique payante : BLOQUÉE – complète infos_vendeur.json avant les paiements réels'
