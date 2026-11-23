@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Unicorn Run</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Nunito:wght@400;600;700&display=swap">
+<style>
+/* Concept : le site reprend la palette et les boutons en relief du jeu, et montre ses vrais écrans.
+   Fond violet nuit pour l'accueil et le jeu, fond lavande clair pour les modes. */
+:root {
+  --night: #1A0D36;
+  --plum: #2B1556;
+  --violet: #5B35A8;
+  --lilac: #B9A2F0;
+  --pink: #F24E9E;
+  --pink-deep: #B8226F;
+  --gold: #FFCB3D;
+  --gold-deep: #C99100;
+  --mint: #3FD0B0;
+  --paper: #F7F1FF;
+  --ink: #2B1556;
+  --ink-soft: #5A4A82;
+  --text: #F4EEFF;
+  --muted: #CBBEEA;
+  --line: rgba(255, 255, 255, 0.14);
+  --display: 'Baloo 2', system-ui, sans-serif;
+  --body: 'Nunito', system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { margin: 0; background: var(--night); color: var(--text); font-family: var(--body); font-size: 18px; line-height: 1.6; }
+h1, h2, h3, p, dl, dd { margin: 0; }
+h1, h2, h3 { font-family: var(--display); font-weight: 800; line-height: 1.05; text-wrap: balance; }
+a { color: var(--gold); }
+a:focus-visible, button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+img { display: block; max-width: 100%; height: auto; }
+[hidden] { display: none !important; }
+
+.band { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.in { max-width: 1200px; margin: 0 auto; }
+.shot { width: 100%; border-radius: 28px; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.14), 0 24px 60px rgba(10, 4, 30, 0.45); background: var(--plum); }
+
+/* boutons en relief, comme dans le jeu */
+.btn { display: inline-block; font: 800 20px/1 var(--display); text-decoration: none; padding: 18px 34px 16px; border-radius: 999px; border: 0; cursor: pointer; transition: transform 0.12s ease, box-shadow 0.12s ease; }
+.btn.gold { background: linear-gradient(#FFE07A, var(--gold)); color: var(--ink); box-shadow: 0 5px 0 var(--gold-deep), 0 12px 24px rgba(0, 0, 0, 0.25); }
+.btn.pink { background: linear-gradient(#FF86BF, var(--pink)); color: #fff; box-shadow: 0 5px 0 var(--pink-deep), 0 12px 24px rgba(0, 0, 0, 0.25); }
+.btn:hover { transform: translateY(2px); }
+.btn.gold:hover { box-shadow: 0 3px 0 var(--gold-deep), 0 8px 18px rgba(0, 0, 0, 0.25); color: var(--ink); }
+.btn.pink:hover { box-shadow: 0 3px 0 var(--pink-deep), 0 8px 18px rgba(0, 0, 0, 0.25); color: #fff; }
+.btn.ghost { border: 2px solid var(--line); color: var(--text); padding: 16px 30px 14px; background: transparent; }
+.btn.ghost:hover { border-color: var(--lilac); color: var(--text); }
+
+/* navigation */
+.top { position: relative; z-index: 2; background: #46228C; }
+.top .in { display: flex; align-items: center; justify-content: space-between; gap: 12px 28px; flex-wrap: wrap; padding-block: 18px; }
+.brand { font: 800 28px/1 var(--display); color: var(--text); text-decoration: none; }
+.links { display: flex; align-items: center; flex-wrap: wrap; gap: 0 28px; }
+.links a { color: var(--muted); text-decoration: none; font-weight: 700; padding: 12px 0; }
+.links a:hover { color: var(--text); }
+.links a.btn { padding: 12px 24px 10px; font-size: 17px; color: var(--ink); }
+.links a.btn:hover { color: var(--ink); }
+
+/* accueil */
+.hero { position: relative; overflow: hidden; background: linear-gradient(180deg, #46228C 0%, #2B1556 58%, var(--night) 100%); }
+.hero::before { content: ""; position: absolute; inset: 0; pointer-events: none; background: repeating-conic-gradient(from 0deg at 74% 38%, rgba(255, 255, 255, 0.06) 0deg 7deg, transparent 7deg 14deg); -webkit-mask-image: radial-gradient(circle at 74% 38%, #000 0%, transparent 68%); mask-image: radial-gradient(circle at 74% 38%, #000 0%, transparent 68%); }
+.hero .in { position: relative; }
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 48px; align-items: center; padding-block: 40px 56px; }
+.hero h1 { font-size: clamp(46px, 7vw, 88px); margin-bottom: 22px; letter-spacing: -0.01em; }
+.hero .lead { font-size: 21px; color: var(--muted); max-width: 520px; margin-bottom: 34px; }
+.cta { display: flex; flex-wrap: wrap; gap: 16px 18px; margin-bottom: 26px; }
+.soon-line { color: var(--muted); font-size: 16px; }
+.fan { position: relative; width: min(100%, 540px); aspect-ratio: 540 / 660; margin-inline: auto; }
+.fan .shot { position: absolute; }
+.fan .c { width: 55%; left: 22.5%; top: 0; z-index: 3; }
+.fan .l { width: 43%; left: 0; top: 14%; transform: rotate(-7deg); z-index: 1; }
+.fan .r { width: 43%; right: 0; top: 14%; transform: rotate(7deg); z-index: 2; }
+.stats { display: flex; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.stat { flex: 1 1 170px; padding: 26px 24px 30px 0; }
+.stat b { display: block; font: 800 52px/1 var(--display); color: var(--gold); }
+.stat span { color: var(--muted); font-size: 16px; }
+
+/* titres de section */
+.section { padding-block: 104px; }
+.section h2 { font-size: clamp(34px, 4.6vw, 54px); margin-bottom: 18px; }
+.section .lead { color: var(--muted); font-size: 20px; max-width: 640px; }
+
+/* aventure et mondes */
+.adv-head { display: flex; flex-wrap: wrap; gap: 28px 64px; align-items: flex-end; justify-content: space-between; margin-bottom: 44px; }
+.adv-head .t { flex: 1 1 420px; min-width: 0; }
+.adv-head dl { flex: 1 1 420px; min-width: 0; }
+.specs { display: grid; grid-template-columns: minmax(96px, 150px) minmax(0, 1fr); border-top: 1px solid var(--line); }
+.specs dt, .specs dd { padding: 13px 0; border-bottom: 1px solid var(--line); font-size: 16.5px; }
+.specs dt { font-weight: 800; color: var(--gold); padding-right: 16px; }
+.specs dd { color: var(--muted); }
+.rail-wrap { position: relative; }
+.rail { display: flex; gap: 24px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 4px 4px 22px; scrollbar-width: thin; scrollbar-color: var(--violet) transparent; }
+.world { flex: 0 0 268px; scroll-snap-align: start; }
+.world .shot { margin-bottom: 18px; }
+.world .k { font: 800 14px/1 var(--display); letter-spacing: 0.07em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+.world.boss .k { color: #FF86BF; }
+.world h3 { font-size: 26px; margin-bottom: 8px; }
+.world p { color: var(--muted); font-size: 16px; line-height: 1.5; }
+.rail-tools { display: flex; gap: 10px; margin-top: 8px; }
+.rbtn { width: 48px; height: 48px; border-radius: 50%; border: 2px solid var(--line); background: transparent; color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.rbtn:hover { border-color: var(--lilac); }
+.rbtn svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* modes (section claire) */
+.light { background: var(--paper); color: var(--ink); }
+.light .lead { color: var(--ink-soft); }
+.light a { color: var(--pink-deep); }
+.row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 72px; align-items: center; margin-top: 96px; }
+.row.flip .txt { order: 2; }
+.row .txt h3 { font-size: clamp(32px, 4vw, 44px); margin-bottom: 16px; color: var(--ink); }
+.row .txt > p { color: var(--ink-soft); margin-bottom: 26px; }
+.light .specs { border-top-color: rgba(43, 21, 86, 0.16); }
+.light .specs dt, .light .specs dd { border-bottom-color: rgba(43, 21, 86, 0.16); }
+.light .specs dt { color: var(--violet); }
+.light .specs dd { color: var(--ink-soft); }
+.phones { display: flex; gap: 22px; align-items: flex-start; justify-content: center; }
+.phones .shot { flex: 1 1 0; min-width: 0; max-width: 300px; box-shadow: 0 0 0 2px rgba(43, 21, 86, 0.1), 0 24px 50px rgba(43, 21, 86, 0.28); }
+.phones .shot:nth-child(2) { margin-top: 56px; }
+.phones.three .shot:nth-child(3) { margin-top: 0; }
+.phones.three .shot { max-width: 220px; }
+.phones.three { gap: 16px; }
+.more { margin-top: 96px; padding-top: 40px; border-top: 1px solid rgba(43, 21, 86, 0.16); display: flex; flex-wrap: wrap; gap: 20px 64px; }
+.more h3 { font-size: 30px; flex: 1 1 260px; color: var(--ink); }
+.more p { flex: 2 1 420px; color: var(--ink-soft); }
+
+/* jouer */
+.play { background: linear-gradient(180deg, var(--night) 0%, #2B1556 50%, var(--night) 100%); }
+.play .in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 420px); gap: 72px; align-items: center; }
+.play .specs { margin-top: 30px; }
+.player { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.phone { position: relative; width: min(100%, 400px, 48vh); min-width: 270px; aspect-ratio: 9 / 16; border-radius: 34px; overflow: hidden; background: #0B1220; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16), 0 30px 70px rgba(0, 0, 0, 0.5); }
+.phone iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.phone:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
+.cover { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 28px 24px; text-align: center; background: var(--night); overflow: hidden; }
+.cover::before { content: ""; position: absolute; inset: -24px; background: url('img/menu.jpg') center / cover; filter: blur(10px) brightness(0.5) saturate(1.1); }
+.cover > * { position: relative; }
+.cover .t { font: 800 40px/1 var(--display); }
+.cover p { color: var(--muted); font-size: 15px; max-width: 240px; }
+.tools { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 22px; }
+.tools button, .tools a { background: none; border: 0; padding: 10px 0; font: 700 15px/1.2 var(--body); color: var(--muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.tools button:hover, .tools a:hover { color: var(--text); }
+
+/* plateformes */
+.stores { margin-top: 44px; border-top: 1px solid var(--line); }
+.store { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 24px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.store h3 { flex: 1 1 200px; font-size: 30px; }
+.store p { flex: 2 1 220px; color: var(--muted); }
+.store span { font: 800 14px/1 var(--display); letter-spacing: 0.07em; text-transform: uppercase; border: 2px solid var(--mint); color: var(--mint); border-radius: 999px; padding: 8px 16px 6px; }
+
+footer { background: #12082A; padding-block: 44px 64px; color: var(--muted); font-size: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+footer .in { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 32px; }
+footer .brand { font-size: 24px; }
+footer .l { display: flex; flex-wrap: wrap; gap: 4px 26px; }
+footer a { color: var(--muted); padding: 8px 0; }
+footer a:hover { color: var(--text); }
+.ph { color: var(--gold); }
+
+@media (max-width: 900px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); gap: 36px; }
+  .row { grid-template-columns: minmax(0, 1fr); gap: 36px; margin-top: 72px; }
+  .row.flip .txt { order: 0; }
+  .play .in { grid-template-columns: minmax(0, 1fr); gap: 48px; }
+  .section { padding-block: 80px; }
+}
+@media (max-width: 520px) {
+  body { font-size: 17px; }
+  .links a:not(.btn) { display: none; }
+  .phones { gap: 14px; }
+  .phones .shot:nth-child(2) { margin-top: 32px; }
+  .stat b { font-size: 44px; }
+  .specs { grid-template-columns: minmax(0, 1fr); }
+  .specs dt { padding: 14px 0 0; border-bottom: 0; }
+  .specs dd { padding: 4px 0 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="top band">
+  <div class="in">
+    <a class="brand" href="#haut">Unicorn Run</a>
+    <nav class="links" aria-label="Navigation principale">
+      <a href="#aventure">Aventure</a>
+      <a href="#modes">Les modes</a>
+      <a href="#plateformes">Plateformes</a>
+      <a class="btn gold" href="#jouer">Jouer</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero band" id="haut">
+  <div class="in">
+    <div class="hero-grid">
+      <div>
+        <h1>Cours, saute, collectionne.</h1>
+        <p class="lead">Unicorn Run est un jeu de plateforme mobile en portrait : 50 niveaux, des courses 3D, un jeu de cartes, un casino de licornes et une petite licorne à élever.</p>
+        <div class="cta">
+          <a class="btn gold" href="#jouer">Jouer maintenant</a>
+          <a class="btn ghost" href="#modes">Découvrir les modes</a>
+        </div>
+        <p class="soon-line">Se joue dans le navigateur. Bientôt sur Android, iPhone et Steam.</p>
+      </div>
+      <div class="fan">
+        <img class="shot l" src="img/volcan.jpg" width="720" height="1558" alt="Un niveau du monde de lave" loading="eager">
+        <img class="shot r" src="img/paradis.jpg" width="720" height="1558" alt="Un niveau du paradis, avec des nuages" loading="eager">
+        <img class="shot c" src="img/menu.jpg" width="720" height="1558" alt="Le menu principal d'Unicorn Run avec la licorne sur son arc-en-ciel" loading="eager">
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><b>50</b><span>niveaux d'aventure</span></div>
+      <div class="stat"><b>5</b><span>mondes et 2 boss</span></div>
+      <div class="stat"><b>93</b><span>cartes à collectionner</span></div>
+      <div class="stat"><b>8</b><span>jeux dans l'appli</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="section band" id="aventure">
+  <div class="in">
+    <div class="adv-head">
+      <div class="t">
+        <h2>L'aventure, de la plaine au paradis</h2>
+        <p class="lead">Ramasse tous les petits arcs-en-ciel du niveau, puis touche le drapeau. Cinq mondes, chacun avec ses ennemis.</p>
+      </div>
+      <dl class="specs">
+        <dt>Vies</dt><dd>3 vies. Les cœurs rouges ramassés en niveau t'en redonnent une.</dd>
+        <dt>Ennemis</dt><dd>Saute dessus pour les écraser.</dd>
+        <dt>Pouvoirs</dt><dd>Boule de feu, vent, raz-de-marée, foudre, bouclier et temps, à acheter en boutique.</dd>
+        <dt>Commandes</dt><dd>Joystick et bouton de saut sur téléphone. Flèches et Espace sur ordinateur.</dd>
+      </dl>
+    </div>
+
+    <div class="rail-wrap">
+      <div class="rail" id="rail" tabindex="0" aria-label="Les mondes de l'aventure">
+        <article class="world">
+          <img class="shot" src="img/plaine.jpg" width="720" height="1558" alt="Le premier niveau dans la plaine" loading="lazy">
+          <p class="k">Niveaux 1 à 9</p>
+          <h3>La plaine</h3>
+          <p>Le départ. Des araignées patrouillent sur les plateformes et des gobelins tirent des fléchettes de loin.</p>
+        </article>
+        <article class="world boss">
+          <img class="shot" src="img/boss-gobelin.jpg" width="720" height="1558" alt="Le combat contre le Gobelin-Araignée" loading="lazy">
+          <p class="k">Boss · niveau 10</p>
+          <h3>Le Gobelin-Araignée</h3>
+          <p>Flèches empoisonnées et toiles qui collent, puis il se transforme en araignée.</p>
+        </article>
+        <article class="world">
+          <img class="shot" src="img/glace.jpg" width="720" height="1558" alt="Un niveau du monde de glace" loading="lazy">
+          <p class="k">Niveaux 11 à 20</p>
+          <h3>La glace</h3>
+          <p>Les pingouins font surgir des glaçons et les stalactites tombent après un avertissement.</p>
+        </article>
+        <article class="world">
+          <img class="shot" src="img/volcan.jpg" width="720" height="1558" alt="Un niveau du volcan, avec de la lave" loading="lazy">
+          <p class="k">Niveaux 21 à 31</p>
+          <h3>Le volcan</h3>
+          <p>Un halo orange annonce chaque éruption, et les slimes de lave sautent partout.</p>
+        </article>
+        <article class="world">
+          <img class="shot" src="img/foret.jpg" width="720" height="1558" alt="Un niveau de la forêt féerique la nuit" loading="lazy">
+          <p class="k">Niveaux 32 à 40</p>
+          <h3>La forêt féerique</h3>
+          <p>Les fées lancent des étoiles. Les sorcières réapparaissent derrière toi.</p>
+        </article>
+        <article class="world boss">
+          <img class="shot" src="img/boss-pegase.jpg" width="720" height="1558" alt="Le combat contre le Pégase des Brumes" loading="lazy">
+          <p class="k">Boss · niveau 41</p>
+          <h3>Le Pégase des Brumes</h3>
+          <p>Saute sur sa tête ou utilise ton pouvoir, qui se recharge à l'infini pendant le combat.</p>
+        </article>
+        <article class="world">
+          <img class="shot" src="img/paradis.jpg" width="720" height="1558" alt="Un niveau du paradis, sur des nuages" loading="lazy">
+          <p class="k">Niveaux 42 à 50</p>
+          <h3>Le paradis</h3>
+          <p>De petits anges foncent sur toi, des harpes lancent des notes et les nuages disparaissent sous tes pieds.</p>
+        </article>
+      </div>
+      <div class="rail-tools">
+        <button class="rbtn" id="prev" type="button" aria-label="Voir les mondes précédents"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <button class="rbtn" id="next" type="button" aria-label="Voir les mondes suivants"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section band light" id="modes">
+  <div class="in">
+    <h2>Et sept autres façons de jouer</h2>
+    <p class="lead">Le bouton Jouer ouvre l'Aventure, les courses, le casino et le solitaire. Unicorn TCG et Ma Licorne ont leur propre bouton dans le menu.</p>
+
+    <div class="row">
+      <div class="txt">
+        <h3>Courses 3D</h3>
+        <p>Une loutre te poursuit : chaque obstacle touché la rapproche, et quand elle t'attrape, la course est finie. Lance-toi seul, ou parie contre trois rivaux.</p>
+        <dl class="specs">
+          <dt>Commandes</dt><dd>Glisse à gauche ou à droite pour changer de voie, vers le haut pour sauter, vers le bas pour t'accroupir.</dd>
+          <dt>Course solo</dt><dd>La vitesse ne cesse d'augmenter, et la foudre frappe une voie toutes les 15 secondes. 10 étoiles ramassées donnent 1 arc-en-ciel.</dd>
+          <dt>Course multi</dt><dd>Trois rivaux contrôlés par l'IA. Le premier à l'arrivée empoche la cagnotte, qui vaut 4 fois la mise.</dd>
+        </dl>
+      </div>
+      <div class="phones">
+        <img class="shot" src="img/course-solo.jpg" width="720" height="1558" alt="La course 3D, avec la loutre qui poursuit la licorne" loading="lazy">
+        <img class="shot" src="img/course-multi.jpg" width="720" height="1558" alt="L'écran de mise de la course multi" loading="lazy">
+      </div>
+    </div>
+
+    <div class="row flip">
+      <div class="txt">
+        <h3>Unicorn TCG</h3>
+        <p>Le Royaume des légendes : un jeu de cartes à collectionner. Fais tomber à zéro les points de vie du héros adverse avant que le sien ne fasse de même.</p>
+        <dl class="specs">
+          <dt>Cartes</dt><dd>93 cartes, des créatures (licornes, pégases, fées, dragons, phénix) et des sorts.</dd>
+          <dt>Deck</dt><dd>De 20 à 30 cartes. Chaque carte a sa rareté, de Basique à Mythique.</dd>
+          <dt>Tour</dt><dd>46 secondes. Ton énergie monte d'un point à chaque tour.</dd>
+          <dt>Rivaux</dt><dd>Trois niveaux de difficulté : Facile, Normal, Difficile. Gagne pour débloquer le suivant.</dd>
+        </dl>
+      </div>
+      <div class="phones">
+        <img class="shot" src="img/tcg.jpg" width="720" height="1558" alt="L'accueil d'Unicorn TCG avec trois cartes licorne" loading="lazy">
+        <img class="shot" src="img/tcg-combat.jpg" width="720" height="1558" alt="Un combat de cartes contre la gardienne des bois" loading="lazy">
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="txt">
+        <h3>Casino et solitaire</h3>
+        <p>Un casino des licornes où tu mises tes arcs-en-ciel, et un solitaire qui utilise les mêmes cartes. Les cartes ont quatre enseignes : Étoile, Fleur, Lune et Cristal.</p>
+        <dl class="specs">
+          <dt>Blackjack</dt><dd>Approche 21 sans le dépasser et bats le gobelin croupier. Le blackjack paie 1,5 fois la mise, et tu peux partager tes cartes en plusieurs mains.</dd>
+          <dt>Roulette</dt><dd>Roulette européenne à un seul zéro. Un numéro plein paie 35 fois la mise, et la caméra suit la bille.</dd>
+          <dt>Solitaire</dt><dd>Range chaque enseigne de l'as au roi. Nouvelle donne, annulation, indice et fin automatique.</dd>
+        </dl>
+      </div>
+      <div class="phones three">
+        <img class="shot" src="img/blackjack.jpg" width="720" height="1558" alt="La table de blackjack avec le gobelin croupier" loading="lazy">
+        <img class="shot" src="img/roulette.jpg" width="720" height="1558" alt="La roulette européenne des licornes" loading="lazy">
+        <img class="shot" src="img/solitaire.jpg" width="720" height="1558" alt="Le solitaire des licornes sur fond d'étoiles" loading="lazy">
+      </div>
+    </div>
+
+    <div class="row flip">
+      <div class="txt">
+        <h3>Ma Licorne</h3>
+        <p>Un œuf mystérieux, puis une petite licorne à élever façon Tamagotchi. Elle vit en temps réel, même quand l'appli est fermée, et elle grandit de bébé à adulte.</p>
+        <dl class="specs">
+          <dt>Ses besoins</dt><dd>Faim, bonheur, énergie, propreté et santé.</dd>
+          <dt>Tes gestes</dt><dd>La nourrir, la coucher, lui faire un câlin, jouer avec elle, la laver et la soigner.</dd>
+          <dt>Attention</dt><dd>Si elle meurt, tu perds 100 arcs-en-ciel.</dd>
+        </dl>
+      </div>
+      <div class="phones">
+        <img class="shot" src="img/licorne-oeuf.jpg" width="720" height="1558" alt="Un œuf mystérieux dans la chambre de la licorne" loading="lazy">
+        <img class="shot" src="img/licorne.jpg" width="720" height="1558" alt="Pixel, un bébé licorne, dans sa chambre" loading="lazy">
+      </div>
+    </div>
+
+    <div class="more">
+      <h3>Et aussi</h3>
+      <p>Une boutique pour dépenser tes arcs-en-ciel en chapeaux, traînées et pouvoirs, avec un coffre à chapeaux. Un classement, un tutoriel intégré, et un jeu en français ou en anglais.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section band play" id="jouer">
+  <div class="in">
+    <div>
+      <h2>Joue maintenant</h2>
+      <p class="lead">Unicorn Run se lance directement dans ton navigateur, sur téléphone comme sur ordinateur. Aucune installation.</p>
+      <dl class="specs">
+        <dt>Téléphone</dt><dd>Joystick à gauche pour avancer, bouton rose pour sauter, bouton à côté pour ton pouvoir.</dd>
+        <dt>Ordinateur</dt><dd>Flèches ou Q et D pour bouger, Espace pour sauter, E pour ton pouvoir, R pour rejouer.</dd>
+        <dt>Son</dt><dd>Touche l'écran une fois dans le jeu pour activer la musique.</dd>
+      </dl>
+    </div>
+    <div class="player">
+      <div class="phone" id="phone">
+        <iframe id="game" title="Unicorn Run, le jeu" allow="fullscreen; autoplay" allowfullscreen></iframe>
+        <div class="cover" id="cover">
+          <span class="t">Unicorn Run</span>
+          <button class="btn gold" id="startBtn" type="button">Lancer le jeu</button>
+          <p>La partie démarre ici, sans rien installer.</p>
+        </div>
+      </div>
+      <div class="tools">
+        <button id="fsBtn" type="button">Plein écran</button>
+        <a href="game.html" target="_blank" rel="noopener">Ouvrir dans un onglet</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section band" id="plateformes" style="padding-top: 24px">
+  <div class="in">
+    <h2>Bientôt sur tes plateformes</h2>
+    <p class="lead">Les versions pour mobile et pour PC arrivent.</p>
+    <div class="stores">
+      <div class="store"><h3>Android</h3><p>Sur Google Play</p><span>Bientôt</span></div>
+      <div class="store"><h3>iPhone et iPad</h3><p>Sur l'App Store</p><span>Bientôt</span></div>
+      <div class="store"><h3>PC</h3><p>Sur Steam</p><span>Bientôt</span></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="in">
+    <a class="brand" href="#haut">Unicorn Run</a>
+    <span>© 2026 Unicorn Run · <span class="ph">[TON NOM OU NOM DU STUDIO]</span></span>
+    <span class="l">
+      <a href="privacy.html">Politique de confidentialité</a>
+      <a href="#haut"><span class="ph">[EMAIL DE CONTACT]</span></a>
+    </span>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var game = document.getElementById('game');
+  var cover = document.getElementById('cover');
+  var phone = document.getElementById('phone');
+  function launch() { if (!game.getAttribute('src')) game.src = 'game.html'; cover.hidden = true; try { game.focus(); } catch (e) {} }
+  document.getElementById('startBtn').addEventListener('click', launch);
+  document.getElementById('fsBtn').addEventListener('click', function () {
+    if (!cover.hidden) launch();
+    try { var p = phone.requestFullscreen && phone.requestFullscreen(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+  });
+  var rail = document.getElementById('rail');
+  function step(d) { try { rail.scrollBy({ left: d * 584, behavior: 'smooth' }); } catch (e) { rail.scrollLeft += d * 584; } }
+  document.getElementById('prev').addEventListener('click', function () { step(-1); });
+  document.getElementById('next').addEventListener('click', function () { step(1); });
+})();
+</script>
+</body>
+</html>
