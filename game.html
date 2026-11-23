@@ -11836,7 +11836,7 @@ const Account = (function () {
   function api(path, body, keepalive) {
     const base = gameServerHttp(); if (!base) return Promise.reject(new Error('noserver'));
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const to = setTimeout(() => { try { ctl && ctl.abort(); } catch (e) {} }, 45000);   // un serveur gratuit endormi met jusqu'à ~1 min
+    const to = setTimeout(() => { try { ctl && ctl.abort(); } catch (e) {} }, 75000);   // un serveur gratuit endormi met jusqu'à ~1 min
     return fetch(base + path, {method: 'POST', headers: {'Content-Type': 'text/plain'}, body: JSON.stringify(body), keepalive: !!keepalive, signal: ctl && ctl.signal})
       .then((r) => r.json()).finally(() => clearTimeout(to));
   }
@@ -11931,6 +11931,7 @@ const Account = (function () {
     store: tx('Le serveur n\'arrive pas à enregistrer les comptes pour le moment. Réessaie plus tard.', 'The server can\'t save accounts right now. Try again later.'),
     noserver: tx('Les comptes ont besoin du serveur du jeu : ouvre le jeu depuis son site.', 'Accounts need the game server: open the game from its website.'),
     net: tx('Le serveur ne répond pas (il se réveille peut-être : jusqu\'à une minute). Vérifie ta connexion et réessaie.', 'The server is not answering (it may be waking up: up to a minute). Check your connection and try again.'),
+    old: tx('Le serveur du jeu répond, mais il n\'est pas encore à jour pour les comptes (nouveau fichier tcg_server.js à installer). Réessaie plus tard.', 'The game server answers but is not updated for accounts yet (new tcg_server.js file to install). Try again later.'),
   }[e] || tx('Une erreur est survenue. Réessaie.', 'Something went wrong. Try again.'));
   function open(vw, o) { view = vw; opts = o || {}; msg = opts.msg || ''; msgBad = !!opts.msg; busy = false; render(); panel.classList.add('open'); }
   function close() { panel.classList.remove('open'); view = ''; }
@@ -12002,9 +12003,25 @@ const Account = (function () {
       }, () => {});
     }, 450);
   }
+  // pas de réponse lisible : le serveur est-il éteint, ou allumé mais d'une version sans comptes ?
+  function probe() {
+    return new Promise((res) => {
+      let u = ''; try { u = gameServerHttp().replace(/^http/i, 'ws'); } catch (e) {}
+      if (!u) { res('noserver'); return; }
+      let ws = null, done = false;
+      const fin = (r) => { if (done) return; done = true; try { ws && ws.close(); } catch (e) {} res(r); };
+      try { ws = new WebSocket(u); } catch (e) { fin('net'); return; }
+      ws.onopen = () => { try { ws.send(JSON.stringify({t: 'hello', v: 1})); } catch (e) {} };
+      ws.onmessage = (e) => { let m = null; try { m = JSON.parse(e.data); } catch (x) {} if (m && m.t === 'welcome') fin(m.name === undefined ? 'old' : 'net'); };
+      ws.onerror = () => fin('net');
+      setTimeout(() => fin('net'), 8000);
+    });
+  }
   async function call(path, body) {
     const slow = setTimeout(() => setMsg(tx('Le serveur se réveille : ça peut prendre jusqu\'à une minute…', 'The server is waking up: this can take up to a minute…')), 4000);
-    try { return await api(path, body); } catch (e) { return {e: e && e.message === 'noserver' ? 'noserver' : 'net'}; } finally { clearTimeout(slow); }
+    try { return await api(path, body); }
+    catch (e) { if (e && e.message === 'noserver') return {e: 'noserver'}; return {e: await probe()}; }
+    finally { clearTimeout(slow); }
   }
   function finish() {
     try { document.getElementById('menuPseudoName').textContent = pseudo; } catch (e) {}
