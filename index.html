@@ -138,6 +138,10 @@ img { display: block; max-width: 100%; height: auto; }
 .player { display: flex; flex-direction: column; align-items: center; gap: 14px; }
 .phone { position: relative; width: min(100%, 400px, 48vh); min-width: 270px; aspect-ratio: 9 / 16; border-radius: 34px; overflow: hidden; background: #0B1220; box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.16), 0 30px 70px rgba(0, 0, 0, 0.5); }
 .phone iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.phone.pfs { position: fixed; inset: 0; z-index: 100; width: 100vw; height: 100dvh; aspect-ratio: auto; border-radius: 0; box-shadow: none; max-width: none; }
+body.pfs-on { overflow: hidden; }
+#exitFs { position: absolute; top: max(8px, env(safe-area-inset-top, 0px)); right: max(8px, env(safe-area-inset-right, 0px)); z-index: 5; display: none; background: rgba(26,13,54,.78); color: #F4EEFF; border: 0; border-radius: 999px; padding: 8px 14px; font: 700 13px/1 var(--body, system-ui); cursor: pointer; }
+.phone.pfs #exitFs { display: block; }
 .phone:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; box-shadow: none; }
 .cover { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 28px 24px; text-align: center; background: var(--night); overflow: hidden; }
 .cover::before { content: ""; position: absolute; inset: -24px; background: url('img/menu.jpg') center / cover; filter: blur(10px) brightness(0.5) saturate(1.1); }
@@ -430,10 +434,28 @@ footer a:hover { color: var(--text); }
   var cover = document.getElementById('cover');
   var phone = document.getElementById('phone');
   function launch() { if (!game.getAttribute('src')) game.src = 'game.html'; cover.hidden = true; try { game.focus(); } catch (e) {} }
-  document.getElementById('startBtn').addEventListener('click', launch);
+  var rf = phone.requestFullscreen || phone.webkitRequestFullscreen;
+  function isFs() { return !!(document.fullscreenElement || document.webkitFullscreenElement || phone.classList.contains('pfs')); }
+  function enterFs() {
+    if (rf) {
+      try { var p = rf.call(phone); if (p && p.catch) p.catch(pseudoFs); return; } catch (e) {}
+    }
+    pseudoFs();
+  }
+  /* iPhone : pas d'API plein écran sur un élément, on remplit l'écran avec le CSS */
+  function pseudoFs() { phone.classList.add('pfs'); document.body.classList.add('pfs-on'); exitBtn.hidden = false; }
+  function leaveFs() {
+    phone.classList.remove('pfs'); document.body.classList.remove('pfs-on'); exitBtn.hidden = true;
+    try { if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen(); else if (document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen(); } catch (e) {}
+  }
+  var exitBtn = document.createElement('button');
+  exitBtn.type = 'button'; exitBtn.id = 'exitFs'; exitBtn.textContent = 'Quitter le plein écran'; exitBtn.hidden = true;
+  exitBtn.addEventListener('click', leaveFs);
+  phone.appendChild(exitBtn);
+  document.getElementById('startBtn').addEventListener('click', function () { launch(); enterFs(); });
   document.getElementById('fsBtn').addEventListener('click', function () {
     if (!cover.hidden) launch();
-    try { var p = phone.requestFullscreen && phone.requestFullscreen(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+    if (isFs()) leaveFs(); else enterFs();
   });
   var rail = document.getElementById('rail');
   function step(d) { try { rail.scrollBy({ left: d * 584, behavior: 'smooth' }); } catch (e) { rail.scrollLeft += d * 584; } }
