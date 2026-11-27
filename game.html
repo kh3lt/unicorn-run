@@ -3760,8 +3760,54 @@
     filter: blur(6px); animation: rouBokeh 9s ease-in-out infinite alternate; }
   #rouPanel::after { background: radial-gradient(60% 50% at 50% 60%, rgba(255, 210, 240, 0.09), transparent 70%), radial-gradient(130% 90% at 50% 50%, transparent 55%, rgba(6, 0, 16, 0.55)); }
   @keyframes rouBokeh { 0% { opacity: .65; transform: translate3d(0, 0, 0); } 100% { opacity: 1; transform: translate3d(-12px, 8px, 0); } }
-  /* le tapis de jeu posé sur une table : rebord en bois et liseré doré, ombre portée */
-  #rouGrid { box-shadow: 0 0 0 2px #f0c050, 0 0 0 7px #5a2a1c, 0 0 0 8px rgba(255, 210, 150, 0.35), 0 18px 34px rgba(0, 0, 0, 0.55), 0 0 60px rgba(255, 120, 210, 0.12), inset 0 0 30px rgba(10, 0, 30, 0.5); margin: 4px 4px 6px; }
+  /* ===== une seule vraie table : la roue et le tapis de mise sur le même feutre, entourés d'un rebord rembourré ===== */
+  #rouPanel:not(.cine) #rouMain { margin: 10px max(14px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(14px, env(safe-area-inset-left)); border-radius: min(46vw, 210px) min(46vw, 210px) 28px 28px;
+    background:
+      radial-gradient(ellipse 75% 32% at 50% 18%, rgba(255, 225, 250, 0.2), transparent 72%),
+      radial-gradient(ellipse 80% 45% at 50% 66%, rgba(255, 225, 250, 0.1), transparent 75%),
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 4px),
+      radial-gradient(ellipse 90% 70% at 50% 40%, #54209a, #3a1374 60%, #250b52);
+    box-shadow: 0 0 0 2px #e8b84a, inset 0 0 0 1px rgba(255, 230, 160, 0.25), inset 0 10px 30px rgba(10, 0, 30, 0.55), inset 0 0 60px rgba(10, 0, 30, 0.45); }
+  /* le rebord en cuir capitonné, sous le feutre */
+  #rouPanel:not(.cine) #rouMain::before { content: ''; position: absolute; inset: -12px; z-index: -1; border-radius: inherit; pointer-events: none;
+    border-top-left-radius: calc(min(46vw, 210px) + 12px); border-top-right-radius: calc(min(46vw, 210px) + 12px); border-bottom-left-radius: 40px; border-bottom-right-radius: 40px;
+    background: repeating-radial-gradient(circle at 50% 50%, transparent 0 7px, rgba(0, 0, 0, 0.08) 7px 8px), linear-gradient(180deg, #8a2f6a, #5a1846 45%, #3a0c2c);
+    box-shadow: inset 0 2px 0 rgba(255, 210, 240, 0.35), inset 0 -4px 8px rgba(0, 0, 0, 0.45), 0 22px 44px rgba(0, 0, 0, 0.6), 0 0 80px rgba(255, 120, 210, 0.12); }
+  #rouPanel:not(.cine) #rouStage { overflow: visible; }
+  #rouPanel:not(.cine) #rouCv { z-index: 0; }
+  #rouPanel:not(.cine) #rouSide { position: relative; z-index: 1; }
+  /* le tapis de mise est imprimé sur le feutre (plus de cadre qui flotte), vu un peu de biais comme la roue */
+  #rouGrid { background: none; box-shadow: inset 0 0 0 2px rgba(240, 192, 80, 0.8); margin: 2px 6px 4px; }
+  #rouGrid.V { transform: perspective(900px) rotateX(10deg); transform-origin: 50% 100%; }
+  #rouGrid.H { transform: perspective(1000px) rotateX(16deg); }
+  .rc { background: rgba(255, 255, 255, 0.025); box-shadow: inset 0 0 0 1px rgba(255, 226, 150, 0.42); text-shadow: none; }
+  .rsep { box-shadow: none; opacity: .85; }
+  /* le bac à jetons et les boutons : creusés dans la table, côté joueur */
+  #rouPanel:not(.cine) #rouCtl { padding: 8px 8px 6px; margin: 0 -2px; border-radius: 18px; background: linear-gradient(180deg, rgba(12, 2, 28, 0.55), rgba(12, 2, 28, 0.35)); box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(255, 220, 160, 0.18); }
+  @media (min-aspect-ratio: 6/5) {
+    #rouPanel:not(.cine) #rouMain { border-radius: min(26vh, 220px) 28px 28px min(26vh, 220px); }
+    #rouPanel:not(.cine) #rouMain::before { border-radius: calc(min(26vh, 220px) + 12px) 40px 40px calc(min(26vh, 220px) + 12px); }
+    #rouPanel:not(.cine) #rouMain { background:
+      radial-gradient(ellipse 34% 60% at 20% 50%, rgba(255, 225, 250, 0.2), transparent 72%),
+      radial-gradient(ellipse 50% 70% at 66% 50%, rgba(255, 225, 250, 0.1), transparent 75%),
+      repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.022) 0 1px, transparent 1px 3px),
+      repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 4px),
+      radial-gradient(ellipse 80% 90% at 40% 50%, #54209a, #3a1374 60%, #250b52); }
+  }
+  /* ===================== Blackjack : une vraie table ===================== */
+  /* les cartes sont couchées sur le tapis (vues de ta place, légèrement en biais) */
+  .bjc .in { transform: rotateX(24deg); }
+  .bjc.down .in { transform: rotateX(24deg) rotateY(180deg); }
+  .bjc.peek .in { transform: rotateX(24deg) rotateY(180deg) rotateX(28deg) translateY(-6%); }
+  .bjc { filter: drop-shadow(0 5px 4px rgba(10, 0, 30, 0.5)); }
+  /* côté joueur : le rebord capitonné de la table continue sous tes jetons et tes boutons */
+  #casinoPanel #bjSide { background: repeating-radial-gradient(circle at 50% 50%, transparent 0 7px, rgba(0, 0, 0, 0.07) 7px 8px), linear-gradient(180deg, #7e2b62, #4c1339 45%, #2c0a22);
+    box-shadow: inset 0 2px 0 rgba(255, 210, 240, 0.35), inset 0 8px 16px rgba(0, 0, 0, 0.3), 0 -2px 0 #e8b84a, 0 -10px 24px rgba(10, 0, 25, 0.45); }
+  @media (min-aspect-ratio: 6/5) {
+    #casinoPanel #bjSide { background: linear-gradient(90deg, #3a0f2e, #24081c 30%, #1a0616);
+      box-shadow: inset 1px 0 0 rgba(255, 210, 240, 0.2), -2px 0 0 #e8b84a, -14px 0 28px rgba(10, 0, 25, 0.55); }
+  }
 
 /*HUD26-CSS-END*/
 </style>
@@ -13681,8 +13727,8 @@ const BJ = (function () {
     if (!W || !built) return;
     const g = geo(), HL = handLayout(g);
     if (instant) layer.classList.add('nt');
-    const dn = dealer.length, dsp = g.cw * 0.62;
-    dealer.forEach((c, i) => setCard(c.el, W / 2 - ((dn - 1) * dsp) / 2 + i * dsp - g.cw / 2, g.dealerY, 0, g.cw, g.ch, 10 + i));
+    const dw = Math.round(g.cw * 0.88), dh = Math.round(dw * 1.42), dn = dealer.length, dsp = dw * 0.62;
+    dealer.forEach((c, i) => setCard(c.el, W / 2 - ((dn - 1) * dsp) / 2 + i * dsp - dw / 2, g.dealerY, 0, dw, dh, 10 + i));
     hands.forEach((h, hi) => {
       const L = HL[hi], m = h.cards.length, x0 = L.cx - (L.cw + (m - 1) * L.off) / 2;
       h.cards.forEach((c, i) => {
@@ -14008,16 +14054,10 @@ const BJ = (function () {
     opts = opts || {};
     const Wd = opts.W || W, Hd = opts.H || H;
     // salle : pénombre, lumières floues, lampe au-dessus de la table
-    let gr = c.createLinearGradient(0, 0, 0, Hd); gr.addColorStop(0, '#13052a'); gr.addColorStop(0.55, '#2a0d4c'); gr.addColorStop(1, '#14061f');
-    c.fillStyle = gr; c.fillRect(0, 0, Wd, Hd);
-    for (const b of BOKEH) {
-      const x = b.x * Wd, y = b.y * g.gy, r = b.r * Math.max(Wd, Hd);
-      const q = c.createRadialGradient(x, y, 0, x, y, r); q.addColorStop(0, 'rgba(' + b.c + ',' + 0.5 * b.k + ')'); q.addColorStop(1, 'rgba(' + b.c + ',0)');
-      c.fillStyle = q; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
-    }
-    const lg = c.createRadialGradient(Wd / 2, -g.gy * 0.1, 0, Wd / 2, g.gy * 0.4, Math.max(Wd, Hd) * 0.6); lg.addColorStop(0, 'rgba(255,220,160,0.32)'); lg.addColorStop(1, 'rgba(255,220,160,0)');
-    c.fillStyle = lg; c.fillRect(0, 0, Wd, Hd);
+    drawWall(c, Wd, Hd, g);
     goblinBody(c, Wd / 2, g.gy, g.s);
+    // le bas du croupier est dans l'ombre de la table (il est derrière, pas collé dessus)
+    { const ao = c.createLinearGradient(0, g.gy - 1.3 * g.s, 0, g.gy); ao.addColorStop(0, 'rgba(12,2,28,0)'); ao.addColorStop(1, 'rgba(12,2,28,0.55)'); c.fillStyle = ao; c.fillRect(Wd / 2 - 2.6 * g.s, g.gy - 1.3 * g.s, 5.2 * g.s, 1.3 * g.s); }
     if (opts.mini) { goblinHands(c, Wd / 2, g.gy, g.s, g, true); return; }
     drawTable(c, g);
     drawTray(c, g);
@@ -14028,15 +14068,60 @@ const BJ = (function () {
     const vg = c.createRadialGradient(Wd / 2, Hd * 0.5, Math.min(Wd, Hd) * 0.4, Wd / 2, Hd * 0.5, Math.hypot(Wd, Hd) * 0.62); vg.addColorStop(0, 'rgba(8,0,20,0)'); vg.addColorStop(1, 'rgba(8,0,20,0.55)');
     c.fillStyle = vg; c.fillRect(0, 0, Wd, Hd);
   }
+  // mur du salon derrière le croupier : soubassement, velours, pilastres dorés, appliques (flou de profondeur : plus sombre et doux)
+  function drawWall(c, Wd, Hd, g) {
+    const bot = g.gy, t = G.t;
+    let gr = c.createLinearGradient(0, 0, 0, bot); gr.addColorStop(0, '#1a0634'); gr.addColorStop(1, '#341056');
+    c.fillStyle = gr; c.fillRect(0, 0, Wd, bot + 2);
+    c.fillStyle = '#14061f'; c.fillRect(0, bot, Wd, Hd - bot);
+    const n = Math.max(3, Math.round(Wd / 150)), pw = Wd / n, wy = bot - Math.max(14, bot * 0.2);
+    for (let i = 0; i < n; i++) {
+      const x0 = i * pw;
+      // panneau de velours plus clair au centre, éventail art déco en haut
+      const pg = c.createLinearGradient(x0, 0, x0 + pw, 0); pg.addColorStop(0, 'rgba(255,255,255,0)'); pg.addColorStop(0.5, 'rgba(255,170,230,0.06)'); pg.addColorStop(1, 'rgba(255,255,255,0)');
+      c.fillStyle = pg; c.fillRect(x0 + pw * 0.1, bot * 0.08, pw * 0.8, wy - bot * 0.08);
+      c.strokeStyle = 'rgba(240,190,90,0.16)'; c.lineWidth = 1.2;
+      for (let k = 1; k <= 3; k++) { c.beginPath(); c.arc(x0 + pw / 2, bot * 0.08 + pw * 0.05, pw * 0.11 * k, 0, Math.PI); c.stroke(); }
+      c.strokeRect(x0 + pw * 0.1 + 0.5, bot * 0.08 + 0.5, pw * 0.8 - 1, wy - bot * 0.08 - 1);
+      // pilastre doré
+      const lg = c.createLinearGradient(x0 - 3, 0, x0 + 3, 0); lg.addColorStop(0, 'rgba(120,80,30,0.5)'); lg.addColorStop(0.5, 'rgba(255,214,140,0.55)'); lg.addColorStop(1, 'rgba(120,80,30,0.5)');
+      c.fillStyle = lg; c.fillRect(x0 - 2.5, 0, 5, bot);
+      // applique murale qui vacille un peu
+      if (i % 2 === 0 || n <= 3) {
+        const sx = x0 + pw / 2, sy = bot * 0.42, fl = 0.85 + 0.15 * Math.sin(t * 6 + i * 2), r = Math.max(26, pw * 0.42);
+        const q = c.createRadialGradient(sx, sy, 0, sx, sy, r); q.addColorStop(0, 'rgba(255,214,150,' + (0.5 * fl).toFixed(2) + ')'); q.addColorStop(0.4, 'rgba(255,150,120,' + (0.14 * fl).toFixed(2) + ')'); q.addColorStop(1, 'rgba(255,140,140,0)');
+        c.fillStyle = q; c.fillRect(sx - r, sy - r, r * 2, r * 2);
+        c.fillStyle = 'rgba(255,226,170,0.95)'; c.beginPath(); c.moveTo(sx - 5, sy + 3); c.lineTo(sx + 5, sy + 3); c.lineTo(sx + 3, sy - 5); c.lineTo(sx - 3, sy - 5); c.closePath(); c.fill();
+      }
+    }
+    // soubassement + cimaise dorée
+    c.fillStyle = '#1c0830'; c.fillRect(0, wy, Wd, bot - wy);
+    c.fillStyle = 'rgba(240,190,90,0.45)'; c.fillRect(0, wy - 2, Wd, 2.5);
+    // profondeur : le fond est un peu plus sombre, la lumière de la lampe tombe sur le croupier et la table
+    gr = c.createLinearGradient(0, 0, 0, bot); gr.addColorStop(0, 'rgba(8,0,20,0.45)'); gr.addColorStop(1, 'rgba(8,0,20,0.15)'); c.fillStyle = gr; c.fillRect(0, 0, Wd, bot);
+    c.save(); c.globalCompositeOperation = 'lighter';
+    const cone = c.createLinearGradient(0, 0, 0, Hd); cone.addColorStop(0, 'rgba(255,220,170,0.16)'); cone.addColorStop(0.6, 'rgba(255,220,170,0.05)'); cone.addColorStop(1, 'rgba(255,220,170,0)');
+    c.fillStyle = cone; c.beginPath(); c.moveTo(Wd / 2 - Wd * 0.1, 0); c.lineTo(Wd / 2 + Wd * 0.1, 0); c.lineTo(Wd / 2 + Wd * 0.55, Hd); c.lineTo(Wd / 2 - Wd * 0.55, Hd); c.closePath(); c.fill();
+    c.restore();
+  }
   const tableEll = (g, inset) => ({rx: W * 0.62 - inset, ry: H - g.gy + 6 - inset});
   function drawTable(c, g) {
     const E = tableEll(g, 0);
     c.save();
     c.beginPath(); c.moveTo(W / 2 + E.rx, g.gy); c.ellipse(W / 2, g.gy, E.rx, E.ry, 0, 0, Math.PI, false); c.closePath();
-    const fg = c.createRadialGradient(W / 2, (g.gy + H) / 2, 0, W / 2, (g.gy + H) / 2, Math.max(W, H) * 0.75);
-    fg.addColorStop(0, '#6c34b6'); fg.addColorStop(0.55, '#44198c'); fg.addColorStop(1, '#250c50');
-    c.fillStyle = fg; c.fill(); c.clip();
+    c.fillStyle = '#2e0f62'; c.fill(); c.clip();
+    // la lampe éclaire le tapis : une flaque de lumière ovale (vue en perspective)
+    const py = g.gy + (H - g.gy) * 0.42, pr = Math.max(W, (H - g.gy) * 1.6) * 0.62;
+    c.save(); c.translate(W / 2, py); c.scale(1, 0.58);
+    const fg = c.createRadialGradient(0, 0, 0, 0, 0, pr); fg.addColorStop(0, '#7e44cc'); fg.addColorStop(0.45, '#5a24a4'); fg.addColorStop(1, 'rgba(46,15,98,0)');
+    c.fillStyle = fg; c.fillRect(-pr, -pr, pr * 2, pr * 2); c.restore();
     c.fillStyle = feltPat; c.fillRect(0, g.gy, W, H - g.gy);
+    // ombre portée du croupier et du bac à jetons sur le tapis, juste devant le bord
+    c.save(); c.translate(W / 2, g.gy + 0.35 * g.s); c.scale(1, 0.28);
+    const sg2 = c.createRadialGradient(0, 0, 0, 0, 0, 3.6 * g.s); sg2.addColorStop(0, 'rgba(10,0,25,0.5)'); sg2.addColorStop(1, 'rgba(10,0,25,0)');
+    c.fillStyle = sg2; c.fillRect(-3.6 * g.s, -3.6 * g.s, 7.2 * g.s, 7.2 * g.s); c.restore();
+    // le feutre s'assombrit vers toi (sous le rebord)
+    const nr = c.createLinearGradient(0, H * 0.7, 0, H); nr.addColorStop(0, 'rgba(10,0,25,0)'); nr.addColorStop(1, 'rgba(10,0,25,0.35)'); c.fillStyle = nr; c.fillRect(0, H * 0.7, W, H * 0.3);
     // ligne dorée décorative
     const E2 = tableEll(g, Math.max(18, H * 0.06));
     c.strokeStyle = 'rgba(240,190,80,0.45)'; c.lineWidth = 1.5; c.beginPath(); c.ellipse(W / 2, g.gy, E2.rx, E2.ry, 0, 0.12, Math.PI - 0.12); c.stroke();
@@ -14044,9 +14129,12 @@ const BJ = (function () {
     const gap = g.handY - (g.dealerY + g.ch);
     const f1 = clamp(g.cw * 0.2, 9, 17);
     if (gap > f1 * 2.2) {
+      // imprimé à plat sur le tapis : écrasé en hauteur comme vu de ta place
+      c.save(); c.translate(W / 2, g.gapY); c.scale(1, 0.7); c.translate(-W / 2, -g.gapY);
       const R = W * 1.15, cy = g.gapY - R - f1 * 0.4;
-      arcText(c, 'BLACKJACK PAIE 3 CONTRE 2', W / 2, cy, R, f1, '#ffd86b');
-      if (gap > f1 * 4) arcText(c, 'LE GOBELIN TIRE JUSQU’À 16 ET RESTE SUR 17', W / 2, cy, R + f1 * 1.5, f1 * 0.72, 'rgba(230,205,255,0.75)');
+      arcText(c, 'BLACKJACK PAIE 3 CONTRE 2', W / 2, cy, R, f1 * 1.08, 'rgba(255,216,107,0.9)');
+      if (gap > f1 * 4) arcText(c, 'LE GOBELIN TIRE JUSQU’À 16 ET RESTE SUR 17', W / 2, cy, R + f1 * 1.6, f1 * 0.76, 'rgba(230,205,255,0.62)');
+      c.restore();
     }
     // petites étoiles dorées imprimées
     for (let i = 0; i < 6; i++) { const x = W * (0.08 + i * 0.168), y = g.gy + (H - g.gy) * (0.12 + 0.07 * Math.sin(i * 1.7)); if (Math.abs(x - W / 2) > W * 0.2) star4(c, x, y, Math.max(3, g.cw * 0.07), '#ffd86b', 0.35); }
@@ -14055,13 +14143,15 @@ const BJ = (function () {
     c.fillStyle = sh; c.fillRect(0, g.gy, W, 14);
     c.restore();
     // bord de table côté croupier (bois laqué + filet doré)
-    const eg = c.createLinearGradient(0, g.gy - 5, 0, g.gy + 4); eg.addColorStop(0, '#ffe7a0'); eg.addColorStop(0.5, '#c8902a'); eg.addColorStop(1, '#6a4410');
-    c.fillStyle = eg; c.fillRect(0, g.gy - 4, W, 7);
+    const eh = Math.max(7, g.s * 0.32), eg = c.createLinearGradient(0, g.gy - eh, 0, g.gy + 2); eg.addColorStop(0, '#9a5a2e'); eg.addColorStop(0.35, '#6a3418'); eg.addColorStop(1, '#3a1608');
+    c.fillStyle = eg; c.fillRect(0, g.gy - eh + 2, W, eh);
+    c.fillStyle = 'rgba(255,210,160,0.35)'; c.fillRect(0, g.gy - eh + 2, W, 1.2);
+    c.fillStyle = '#e8b84a'; c.fillRect(0, g.gy + 1, W, 1.6);
   }
   function drawRail(c, g) {
-    const rw = clamp(H * 0.055, 12, 34), E = tableEll(g, -rw / 2);
+    const rw = clamp(H * 0.07, 16, 40), E = tableEll(g, -rw / 2);
     c.save(); c.lineCap = 'butt';
-    const lg = c.createLinearGradient(0, H * 0.6, 0, H); lg.addColorStop(0, '#5a2446'); lg.addColorStop(1, '#2a0c20');
+    const lg = c.createLinearGradient(0, H * 0.6, 0, H); lg.addColorStop(0, '#8a2f6a'); lg.addColorStop(1, '#4a1238');
     c.strokeStyle = lg; c.lineWidth = rw; c.beginPath(); c.ellipse(W / 2, g.gy, E.rx, E.ry, 0, 0, Math.PI); c.stroke();
     c.strokeStyle = 'rgba(255,255,255,0.13)'; c.lineWidth = rw * 0.18; c.beginPath(); c.ellipse(W / 2, g.gy, E.rx - rw * 0.18, E.ry - rw * 0.18, 0, 0, Math.PI); c.stroke();
     c.strokeStyle = '#e8b84a'; c.lineWidth = 2; c.beginPath(); c.ellipse(W / 2, g.gy, E.rx - rw / 2 - 1, E.ry - rw / 2 - 1, 0, 0, Math.PI); c.stroke();
@@ -14261,6 +14351,8 @@ const BJ = (function () {
       const shp = [x0 + sd * 1.5 * s, y0 + b - 0.05 * s];
       c.strokeStyle = '#f2ecfb'; c.lineCap = 'round'; c.lineWidth = 0.42 * s;
       c.beginPath(); c.moveTo(shp[0], shp[1]); c.quadraticCurveTo((shp[0] + hp[0]) / 2 + sd * 0.2 * s, Math.max(shp[1], hp[1]) + 0.1 * s, hp[0], hp[1]); c.stroke();
+      // ombre de la main sur le tapis
+      c.save(); c.fillStyle = 'rgba(10,0,25,0.32)'; c.beginPath(); c.ellipse(hp[0] + 0.05 * s, hp[1] + 0.32 * s, 0.34 * s, 0.11 * s, 0, 0, TAU); c.fill(); c.restore();
       // main verte (doigts griffus)
       c.save(); c.translate(hp[0], hp[1]);
       c.fillStyle = '#6fb546'; c.beginPath(); c.ellipse(0, 0, 0.26 * s, 0.2 * s, 0, 0, TAU); c.fill();
@@ -22225,8 +22317,8 @@ const Roulette = (function () {
       const a = k * TAU / 24 + TAU / 48, rm = 3.13, da = 0.026, dr = 0.08;
       UNDER.push({pts: [P(rm - dr, a, 0), P(rm, a + da, 0), P(rm + dr, a, 0), P(rm, a - da, 0)], fill: 'rgba(255,214,120,0.6)'});
     }
-    UNDER.push({pts: circlePts(1.7, 0, 64), hole: circlePts(1.66, 0, 64), fill: 'rgba(240,190,80,0.85)'});
-    UNDER.push({pts: circlePts(1.6, 0, 64), fill: 'rgba(20,4,40,0.35)'});
+    UNDER.push({pts: circlePts(1.7, 0, 64), hole: circlePts(1.66, 0, 64), fill: 'rgba(240,190,80,0.85)', keep: 1});
+    UNDER.push({pts: circlePts(1.6, 0, 64), fill: 'rgba(20,4,40,0.35)', keep: 1});
     for (let k = 0; k < 12; k++) {
       const a = k * TAU / 12 + 0.13, c = P(2.78, a, 0), pts = [];
       for (let i = 0; i < 10; i++) { const rr = i % 2 ? 0.035 : 0.085, b = a + i * TAU / 10; pts.push([c[0] + rr * Math.cos(b), 0, c[2] + rr * Math.sin(b)]); }
@@ -22276,7 +22368,8 @@ const Roulette = (function () {
     const {ctx, W, H} = V, cam = V.cam;
     const ce = Math.cos(cam.el), C = [cam.tx + cam.d * ce * Math.cos(cam.az), cam.ty + cam.d * Math.sin(cam.el), cam.tz + cam.d * ce * Math.sin(cam.az)];
     const fw = norm([cam.tx - C[0], cam.ty - C[1], cam.tz - C[2]]), rt = norm(cross(fw, [0, 1, 0])), up = cross(rt, fw);
-    const F = 0.5 * Math.min(W, H * 1.15) / Math.tan(cam.fov / 2), cx = W / 2, cy = H / 2;
+    const vs = V.felt && V.vpCss ? W / Math.max(1, V.cv.clientWidth) : 0, VP = vs ? {x: V.vpCss.x * vs, y: V.vpCss.y * vs, w: V.vpCss.w * vs, h: V.vpCss.h * vs} : {x: 0, y: 0, w: W, h: H};
+    const F = 0.5 * Math.min(VP.w, VP.h * 1.15) / Math.tan(cam.fov / 2) * (vs ? (VP.h > VP.w * 0.8 ? 0.9 : 0.78) : 1), cx = VP.x + VP.w / 2, cy = VP.y + VP.h / 2;
     const toCam = (p) => { const v0 = p[0] - C[0], v1 = p[1] - C[1], v2 = p[2] - C[2]; return [v0 * rt[0] + v1 * rt[1] + v2 * rt[2], v0 * up[0] + v1 * up[1] + v2 * up[2], v0 * fw[0] + v1 * fw[1] + v2 * fw[2]]; };
     const proj = (q) => [cx + q[0] * F / q[2], cy - q[1] * F / q[2]];
     const clip = (Q) => {
@@ -22297,13 +22390,15 @@ const Roulette = (function () {
     // --- fond : salle du casino dans la pénombre + bokeh de lumières ---
     if (!V.bg) { const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#12052a'); g.addColorStop(0.55, '#2a0f4a'); g.addColorStop(1, '#14061f'); V.bg = g; }
     ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = V.bg; ctx.fillRect(0, 0, W, H);
+    const felt = !!(V.felt && vs);
+    if (felt) ctx.clearRect(0, 0, W, H); else { ctx.fillStyle = V.bg; ctx.fillRect(0, 0, W, H); }
     // --- la salle : moquette, ombre et pied de la table (côté visible seulement) ---
     const fillPoly = (A, fill, hole) => {
       ctx.fillStyle = fill; ctx.beginPath(); A.s.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
       if (hole) { const B = polyScreen(hole); if (B) { B.s.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); } ctx.fill('evenodd'); return; }
       ctx.fill(); ctx.strokeStyle = fill; ctx.lineWidth = 1; ctx.stroke();
     };
+    if (!felt) {
     for (const f of ROOM_WALL) { const A = polyScreen(f.pts); if (A) fillPoly(A, f.fill); }
     for (const sc of SCONCES) {
       const q = toCam(P(15.9, sc.a, 2.9)); if (q[2] < 0.5) continue;
@@ -22329,8 +22424,13 @@ const Roulette = (function () {
       fillPoly(A, 'rgb(' + (110 * k | 0) + ',' + (52 * k | 0) + ',' + (40 * k | 0) + ')');
       ctx.strokeStyle = 'rgba(245,196,90,' + (0.5 + 0.5 * k).toFixed(2) + ')'; ctx.lineWidth = Math.max(1.5, F * 0.004); ctx.beginPath(); ctx.moveTo(A.s[0][0], A.s[0][1]); ctx.lineTo(A.s[1][0], A.s[1][1]); ctx.stroke();
     }
+    } else {
+      // la roue est posée sur le feutre : ombre douce autour de sa base
+      [[2.05, 0.06], [1.9, 0.08], [1.78, 0.1]].forEach(([r, a]) => { const A = polyScreen(circlePts(r, 0, 48)); if (A) { ctx.globalAlpha = a; fillPoly(A, 'rgb(8,0,20)'); ctx.globalAlpha = 1; } });
+    }
     // --- table (dessinée d'abord, toujours derrière) ---
     for (const u of UNDER) {
+      if (felt && !u.keep) continue;
       const A = polyScreen(u.pts); if (!A) continue;
       ctx.fillStyle = u.fill; ctx.beginPath();
       A.s.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath();
@@ -22430,9 +22530,9 @@ const Roulette = (function () {
       g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(1, 'rgba(255,200,240,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(p[0], p[1], s * 3, 0, TAU); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = Math.max(1, s * 0.18); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(p[0] - s * 2, p[1]); ctx.lineTo(p[0] + s * 2, p[1]); ctx.moveTo(p[0], p[1] - s * 2); ctx.lineTo(p[0], p[1] + s * 2); ctx.stroke(); } }
     // vignettage de cinéma + fondu des coupes
-    if (!V.vig) { const g = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.35, cx, cy, Math.hypot(W, H) * 0.62); g.addColorStop(0, 'rgba(8,0,20,0)'); g.addColorStop(1, 'rgba(8,0,20,0.62)'); V.vig = g; }
-    ctx.fillStyle = V.vig; ctx.fillRect(0, 0, W, H);
-    if (scene.flash > 0) { ctx.fillStyle = 'rgba(10,0,24,' + scene.flash + ')'; ctx.fillRect(0, 0, W, H); }
+    if (!felt && !V.vig) { const g = ctx.createRadialGradient(cx, cy, Math.min(W, H) * 0.35, cx, cy, Math.hypot(W, H) * 0.62); g.addColorStop(0, 'rgba(8,0,20,0)'); g.addColorStop(1, 'rgba(8,0,20,0.62)'); V.vig = g; }
+    if (!felt) ctx.fillStyle = V.vig, ctx.fillRect(0, 0, W, H);
+    if (scene.flash > 0 && !felt) { ctx.fillStyle = 'rgba(10,0,24,' + scene.flash + ')'; ctx.fillRect(0, 0, W, H); }
   }
 
   // ---------------- sons ----------------
@@ -22537,8 +22637,19 @@ const Roulette = (function () {
 
   const total = () => Object.values(st.bets).reduce((a, b) => a + b, 0);
   const fmt = (v) => v >= 1000 ? (v % 1000 ? (v / 1000).toFixed(1) : v / 1000) + 'k' : String(v);
+  // hors cinématique, la toile de la roue s'étend sous toute la table (même feutre, même lumière que le tapis de mise)
+  function placeCv() {
+    const cv = $('rouCv'), felt = !$('rouPanel').classList.contains('cine');
+    V.felt = felt;
+    if (!felt) { if (cv._k) { cv._k = ''; cv.style.cssText = ''; } V.vpCss = null; return; }
+    const m = $('rouMain').getBoundingClientRect(), sr = $('rouStage').getBoundingClientRect();
+    const k = [m.left - sr.left, m.top - sr.top, m.width, m.height].map((v) => Math.round(v)).join(',');
+    if (k !== cv._k) { cv._k = k; const [x, y, w, h] = k.split(',');
+      cv.style.cssText = 'left:' + x + 'px;top:' + y + 'px;width:' + w + 'px;height:' + h + 'px;right:auto;bottom:auto;pointer-events:none;'; }
+    V.vpCss = {x: sr.left - m.left, y: sr.top - m.top, w: sr.width, h: sr.height};
+  }
   function idleCam(V) {
-    const portrait = V.H > V.W * 1.05;
+    const vw = V.felt && V.vpCss ? V.vpCss.w : V.W, vh = V.felt && V.vpCss ? V.vpCss.h : V.H, portrait = vh > vw * 1.05;
     return {az: st.idleAz, el: 0.92, d: portrait ? 4.5 : 4.85, tx: 0, ty: 0.02, tz: 0, fov: 0.62};
   }
   function camCine(t, sp, B, dt) {
@@ -22573,6 +22684,7 @@ const Roulette = (function () {
     if (!st.open) return;
     const dt = Math.min(0.05, Math.max(0, (now - (st.last || now)) / 1000)); st.last = now;
     st.time += dt;
+    placeCv();
     if (!fit(V)) { st.raf = requestAnimationFrame(frame); return; }
     let ball;
     if (st.mode === 'spin') {
@@ -22592,7 +22704,6 @@ const Roulette = (function () {
     } else {
       st.wSpeed += (0.25 - st.wSpeed) * Math.min(1, dt * 0.6);
       st.wa += st.wSpeed * dt;
-      st.idleAz += 0.05 * dt;
       const r = 0.7925; ball = {a: st.wa + st.restPhi, r, y: surfY(r) + BALL_R, vis: 1};
       const ic = idleCam(V);
       if (st.blend < 1 && st.camFrom) {
