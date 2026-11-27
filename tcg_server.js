@@ -1,4 +1,4 @@
-// Unicorn Run : serveur du jeu (duels TCG en ligne, Course multi en ligne, achats d'arcs-en-ciel)
+// Unicorn Run : serveur du jeu, VERSION 2026-11-27 (bouton Prêt en course multi, comptes joueurs, classement en ligne, course multi, duels TCG, boutique)
 // -----------------------------------------------------------------------------
 // Aucune dépendance : il suffit de Node.js 18 ou plus.
 //     node tcg_server.js
@@ -324,14 +324,38 @@ function sendClip(req, res, name) {
 // Compte réservé aux 15 ans et plus (majorité numérique en France) ; la date de naissance sert aussi à réserver le casino aux 18 ans et plus.
 // Stockage : base Upstash Redis (gratuite, en HTTPS) si UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN sont réglés.
 // Sinon : fichier data/comptes.json, pratique à la maison mais EFFACÉ à chaque redémarrage sur Render gratuit.
-const KV_URL = (process.env.UPSTASH_REDIS_REST_URL || '').trim().replace(/\/+$/, ''), KV_TOKEN = (process.env.UPSTASH_REDIS_REST_TOKEN || '').trim();
-const KV_ON = !!(KV_URL && KV_TOKEN), DATA_FILE = path.join(__dirname, 'data', 'comptes.json');
+// valeurs collées avec des guillemets, des espaces ou « NOM=… » devant : on nettoie
+const envClean = (v) => String(v || '').trim().replace(/^[A-Z_]+\s*=\s*/, '').replace(/^["'`]+|["'`;]+$/g, '').trim();
+let KV_URL = envClean(process.env.UPSTASH_REDIS_REST_URL).replace(/\/+$/, ''), KV_TOKEN = envClean(process.env.UPSTASH_REDIS_REST_TOKEN);
+let KV_PROBLEM = '';
+if (KV_URL && /^rediss?:\/\//i.test(KV_URL)) KV_PROBLEM = 'UPSTASH_REDIS_REST_URL contient l\'adresse « rediss://… » : il faut celle de la partie REST, qui commence par https://';
+else if (KV_URL && !/^https?:\/\//i.test(KV_URL)) KV_URL = 'https://' + KV_URL;
+if (!KV_PROBLEM && (KV_URL ? !KV_TOKEN : !!KV_TOKEN)) KV_PROBLEM = 'il manque ' + (KV_URL ? 'UPSTASH_REDIS_REST_TOKEN' : 'UPSTASH_REDIS_REST_URL');
+const SERVER_VERSION = '2026-11-27';
+const KV_ON = !!(KV_URL && KV_TOKEN && !/^rediss?:/i.test(KV_URL)), DATA_FILE = path.join(__dirname, 'data', 'comptes.json');
 const MIN_AGE = 15, ADULT_AGE = 18, SAVE_MAX = 450 * 1024, TOKEN_TTL = 365 * 86400, KEEP_TTL = 3 * 365 * 86400;   // compte sans connexion pendant 3 ans : effacé
 async function upstash(args) {
   const r = await fetch(KV_URL, {method: 'POST', headers: {Authorization: 'Bearer ' + KV_TOKEN, 'Content-Type': 'application/json'}, body: JSON.stringify(args), signal: AbortSignal.timeout(8000)});
   const j = await r.json().catch(() => ({}));
-  if (!r.ok || j.error) throw new Error('base de comptes : ' + (j.error || r.status));
+  if (!r.ok || j.error) throw new Error('base de comptes : ' + (j.error || ('HTTP ' + r.status)));
   return j.result;
+}
+// au démarrage : on vérifie que la base Upstash accepte bien de lire et d'écrire, et on dit clairement ce qui ne va pas
+async function kvSelfTest() {
+  if (!KV_ON) return;
+  try {
+    await upstash(['SET', 'diag:ping', String(Date.now()), 'EX', '120']);
+    await upstash(['GET', 'diag:ping']);
+    KV_PROBLEM = '';
+    log('Comptes joueurs : base Upstash vérifiée (lecture et écriture OK)');
+  } catch (e) {
+    const m = String(e && e.message || e);
+    KV_PROBLEM = /WRONGPASS|invalid or missing auth|Unauthorized|HTTP 401/i.test(m) ? 'Upstash refuse le jeton : recopie UPSTASH_REDIS_REST_TOKEN (le jeton principal, pas celui « read-only »)'
+      : /NOPERM|no permissions/i.test(m) ? 'c\'est le jeton « read-only » : prends le jeton principal UPSTASH_REDIS_REST_TOKEN'
+      : /fetch failed|ENOTFOUND|EAI_AGAIN|Invalid URL|abort|timeout/i.test(m) ? 'impossible de joindre Upstash : vérifie UPSTASH_REDIS_REST_URL (https://…upstash.io)'
+      : m;
+    log('⚠ Comptes joueurs : la base Upstash ne marche pas : ' + KV_PROBLEM + ' (' + m + ')');
+  }
 }
 const fileKv = {map: null, t: 0};
 function fileLoad() { if (fileKv.map) return; try { fileKv.map = new Map(Object.entries(JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')))); } catch (e) { fileKv.map = new Map(); } }
@@ -360,7 +384,7 @@ const kv = {
   async expire(k, sec) { if (KV_ON) { await upstash(['EXPIRE', k, String(sec)]); return; } fileLoad(); const e = fileKv.map.get(k); if (e) { e.x = Date.now() + sec * 1000; fileSave(); } },
 };
 const pkeyOf = (p) => String(p || '').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const RESERVED = new Set(['admin', 'administrateur', 'moderateur', 'modo', 'neko', 'nekostudio', 'invite', 'guest', 'joueur', 'licorne', 'unicorn', 'unicornrun', 'support', 'staff', 'systeme', 'system', 'serveur']);
+const RESERVED = new Set(['admin', 'administrateur', 'moderateur', 'modo', 'invite', 'guest', 'joueur', 'licorne', 'unicorn', 'unicornrun', 'support', 'staff', 'systeme', 'system', 'serveur']);
 function pseudoCheck(raw) {
   const p = String(raw || '').replace(/\s+/g, ' ').trim();
   if (p.length < 3 || p.length > 14) return {e: 'len'};
@@ -581,13 +605,16 @@ const server = http.createServer((req, res) => {
   const clip = /^\/clips\/(mvm-[a-z]+-[LP])\.mp4$/.exec(url);
   if (clip) { sendClip(req, res, clip[1]); return; }
   if (url.startsWith('/shop/')) { shopRoute(req, res, url).catch(() => { try { sendJson(res, 500, {e: 'server'}); } catch (e) {} }); return; }
-  if (url.startsWith('/account/')) { accountRoute(req, res, url).catch((e) => { log('⚠ comptes :', e.message); try { sendJson(res, 503, {e: 'store'}); } catch (x) {} }); return; }
+  if (url.startsWith('/account/')) { accountRoute(req, res, url).catch((e) => { log('⚠ comptes :', e.message); if (KV_ON) kvSelfTest().catch(() => {}); try { sendJson(res, 503, {e: 'store', why: KV_PROBLEM || String(e.message || '')}); } catch (x) {} }); return; }
   if (url === '/presence') { presenceRoute(req, res, url); return; }
   if (url.startsWith('/lb/')) { lbRoute(req, res, url).catch((e) => { log('⚠ classement :', e.message); try { sendJson(res, 503, {e: 'store'}); } catch (x) {} }); return; }
   if (url === '/legal/mentions') { pageMentions(res); return; }
   if (url === '/legal/cgv') { pageCgv(res); return; }
   if (url === '/legal/confidentialite') { pageConfidentialite(res); return; }
-  if (url === '/health') { res.writeHead(200, {'Content-Type': 'text/plain; charset=utf-8'}); res.end('ok'); return; }
+  if (url === '/health') {   // « ok » + version : permet de vérifier que le bon fichier tourne
+    res.writeHead(200, {'Content-Type': 'text/plain; charset=utf-8', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'no-store'});
+    res.end('ok · version ' + SERVER_VERSION + ' · comptes : ' + (KV_PROBLEM ? 'PROBLÈME : ' + KV_PROBLEM : KV_ON ? 'base Upstash OK' : 'fichier local (à remplacer par Upstash)')); return;
+  }
   const gf = (url === '/' || GAME_NAMES.indexOf(url.slice(1)) >= 0) ? gameFile() : '';
   if (gf) {
     let st = null; try { st = fs.statSync(gf); } catch (e) {}
@@ -756,12 +783,17 @@ function handle(c, m) {
 }
 
 // ---------------------------------------------------------------- Course multi en ligne (2 à 4 joueurs)
-// Salon privé : on partage un code, le créateur lance la course quand tout le monde est prêt.
-// Partie rapide : le serveur regroupe les joueurs qui ont choisi la même mise et lance tout seul.
+// Chaque joueur arrive « pas prêt » et appuie sur Prêt : personne ne part sans l'avoir choisi.
+// Salon privé : on partage un code, le créateur lance la course avec les joueurs prêts.
+// Partie rapide : le serveur regroupe les joueurs qui ont choisi la même mise ; le compte à rebours
+// démarre quand au moins 2 joueurs sont prêts (court si tout le monde l'est, plus long sinon :
+// ceux qui ne sont toujours pas prêts au départ passent dans un autre salon et attendent la suivante).
 // Pendant la course chaque téléphone envoie sa position ~12 fois par seconde ; le serveur la relaie
 // aux autres, note les temps d'arrivée et annonce le classement (le 1er empoche la cagnotte).
 const RACE_MAX = 4, RACE_LEN = 5300, RACE_STAKES = [0, 10, 50, 100, 500];
-const RACE_WAIT = 10000, RACE_WAIT_FULL = 3000;   // partie rapide : départ 10 s après le 2e joueur, 3 s si le salon est plein
+const RACE_GO = 5000, RACE_GO_FULL = 3000;        // partie rapide, tout le monde prêt : départ dans 5 s (3 s si le salon est plein)
+const RACE_AFK = 20000;                           // au moins 2 prêts mais pas tous : départ dans 20 s sans les retardataires
+const RACE_NEWCOMER = 5000;                       // un joueur qui arrive pendant le compte à rebours a au moins 5 s pour se dire prêt
 const RACE_FIN_GRACE = 1500;                      // après la 1re arrivée, on attend un peu les arrivées serrées (réseau)
 const RACE_MAX_T = 6 * 60 * 1000;                 // course bloquée (tout le monde en pause…) : on arrête
 const num = (v, lo, hi) => { v = Number(v); return Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : lo; };
@@ -778,8 +810,13 @@ function raceNew(c, quick, bet) {
   return R;
 }
 function raceEnter(c, R) {
-  R.players.push(c); c.race = R; c.rready = true;
-  raceAuto(R); raceSync(R);
+  // les jeux d'avant le bouton Prêt (pas de « rdy » dans leur demande) sont prêts d'office, comme avant
+  R.players.push(c); c.race = R; c.rready = !!c.oldReady;
+  raceAuto(R, true); raceSync(R);
+}
+function quickLobby(bet, not) {
+  for (const x of races.values()) if (x !== not && x.quick && x.st === 'lobby' && x.bet === bet && x.players.length < RACE_MAX) return x;
+  return null;
 }
 function leaveRace(c) {
   const R = c.race; if (!R) return;
@@ -795,15 +832,18 @@ function leaveRace(c) {
   raceAuto(R);
   if (races.has(R.code)) raceSync(R);
 }
-// partie rapide : compte à rebours automatique dès que 2 joueurs (tous prêts) sont là
-function raceAuto(R) {
+// partie rapide : compte à rebours automatique dès que 2 joueurs sont prêts
+function raceAuto(R, newcomer) {
   if (!R.quick || R.st !== 'lobby') return;
-  const ok = R.players.length >= 2 && R.players.every((p) => p.rready);
-  if (!ok) { if (R.autoT) { clearTimeout(R.autoT); R.autoT = 0; R.autoAt = 0; } return; }
-  const delay = R.players.length >= RACE_MAX ? RACE_WAIT_FULL : RACE_WAIT, at = Date.now() + delay;
-  if (!R.autoT || at < R.autoAt) {
+  const rd = R.players.filter((p) => p.rready).length, all = rd === R.players.length;
+  if (rd < 2) { if (R.autoT) { clearTimeout(R.autoT); R.autoT = 0; R.autoAt = 0; } return; }
+  const now = Date.now();
+  let at = now + (all ? (R.players.length >= RACE_MAX ? RACE_GO_FULL : RACE_GO) : RACE_AFK);
+  if (R.autoT && R.autoAt < at) at = R.autoAt;                              // un départ annoncé n'est jamais repoussé…
+  if (newcomer && R.autoT && at - now < RACE_NEWCOMER) at = now + RACE_NEWCOMER; // …sauf pour laisser le temps au nouveau venu
+  if (!R.autoT || at !== R.autoAt) {
     clearTimeout(R.autoT); R.autoAt = at;
-    R.autoT = setTimeout(() => { R.autoT = 0; R.autoAt = 0; raceStart(R); }, delay);
+    R.autoT = setTimeout(() => { R.autoT = 0; R.autoAt = 0; raceStart(R); }, Math.max(0, at - now));
   }
 }
 function raceStart(R) {
@@ -812,6 +852,14 @@ function raceStart(R) {
   if (list.length < 2) { raceSync(R); return; }
   clearTimeout(R.autoT); R.autoT = 0; R.autoAt = 0;
   R.st = 'run'; R.seed = crypto.randomInt(1, 2147483646);
+  if (R.quick) {
+    // partie rapide : ceux qui ne sont pas prêts attendent la suivante dans un autre salon
+    const rest = R.players.filter((p) => !p.rready);
+    if (rest.length) {
+      R.players = R.players.filter((p) => p.rready);
+      for (const p of rest) { p.race = null; raceEnter(p, quickLobby(R.bet, R) || raceNew(p, true, R.bet)); }
+    }
+  }
   R.racers = new Set(list.map((p) => p.id)); R.names = new Map(list.map((p) => [p.id, p.name]));
   R.fins = new Map(); R.lastZ = new Map(); R.gone = new Set(); R.pot = R.bet * list.length;
   const players = list.map((p) => ({id: p.id, name: p.name}));
@@ -844,6 +892,7 @@ function raceDecide(R) {
 }
 function raceHandle(c, m) {
   const R = c.race;
+  if (m.t === 'rcreate' || m.t === 'rjoin' || m.t === 'rquick') c.oldReady = !m.rdy;
   switch (m.t) {
     case 'rcreate': {
       const bet = RACE_STAKES.indexOf(m.bet | 0) >= 0 ? m.bet | 0 : 0;
@@ -864,16 +913,20 @@ function raceHandle(c, m) {
     case 'rquick': {
       const bet = RACE_STAKES.indexOf(m.bet | 0) >= 0 ? m.bet | 0 : 0;
       leaveRace(c);
-      let T = null;
-      for (const x of races.values()) if (x.quick && x.st === 'lobby' && x.bet === bet && x.players.length < RACE_MAX) { T = x; break; }
-      raceEnter(c, T || raceNew(c, true, bet));
+      raceEnter(c, quickLobby(bet, null) || raceNew(c, true, bet));
       break;
     }
-    case 'rready':
-      if (R && !c.rready) { c.rready = true; raceAuto(R); raceSync(R); }
+    case 'rready': {
+      // Prêt / plus prêt (les anciens jeux envoient {t:'rready'} sans « on » : ça veut dire prêt)
+      if (!R || (R.st === 'run' && R.racers.has(c.id))) break;
+      const on = m.on !== false;
+      if (c.rready === on) { raceSync(R); break; }
+      c.rready = on; raceAuto(R); raceSync(R);
       break;
+    }
     case 'rstart':
-      if (R && !R.quick && R.host === c.id) raceStart(R);
+      // l'hôte qui lance est forcément prêt ; les joueurs pas prêts attendent la course suivante
+      if (R && !R.quick && R.host === c.id && R.st === 'lobby') { c.rready = true; raceStart(R); }
       break;
     case 'rleave':
       leaveRace(c);
@@ -910,6 +963,7 @@ setInterval(() => {
 server.listen(PORT, () => {
   log('Serveur Unicorn Run prêt sur le port ' + PORT + (gameFile() ? ' (le jeu ' + path.basename(gameFile()) + ' est servi sur /)' : ' (aucun fichier de jeu trouvé à côté du serveur)'));
   log(KV_ON ? 'Comptes joueurs : base Upstash (permanente)' : '⚠ Comptes joueurs : fichier local data/comptes.json. Sur Render gratuit il est EFFACÉ à chaque redémarrage : règle UPSTASH_REDIS_REST_URL et UPSTASH_REDIS_REST_TOKEN.');
+  kvSelfTest().catch(() => {});
   const v = seller();
   log(!STRIPE_KEY ? 'Boutique payante : fermée (pas de STRIPE_SECRET_KEY)'
     : LIVE && !v.complete ? 'Boutique payante : BLOQUÉE – complète infos_vendeur.json avant les paiements réels'
